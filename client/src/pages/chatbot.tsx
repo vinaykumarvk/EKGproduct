@@ -33,6 +33,7 @@ export default function ChatbotPage() {
   const [mode, setMode] = useState<"balanced" | "deep" | "concise">("balanced");
   const [useCache, setUseCache] = useState(true);
   const [response, setResponse] = useState<string>("");
+  const [metadata, setMetadata] = useState<string>("");
   const [citations, setCitations] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [copied, setCopied] = useState(false);
@@ -61,6 +62,7 @@ export default function ChatbotPage() {
       if (data.error) {
         setError(data.error);
         setResponse("");
+        setMetadata("");
         setCitations("");
         toast({
           title: "Error",
@@ -69,6 +71,7 @@ export default function ChatbotPage() {
         });
       } else {
         setResponse(data.data);
+        setMetadata(data.metadata || "");
         setCitations(data.citations || "");
         setError("");
         queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
@@ -82,6 +85,7 @@ export default function ChatbotPage() {
       const errorMessage = error.message || "Failed to execute query";
       setError(errorMessage);
       setResponse("");
+      setMetadata("");
       setCitations("");
       toast({
         title: "Error",
@@ -96,6 +100,7 @@ export default function ChatbotPage() {
     setMode(conversation.mode as "balanced" | "deep" | "concise");
     setUseCache(conversation.useCache);
     setResponse(conversation.response);
+    setMetadata(""); // Metadata not stored in history yet
     setCitations(""); // Citations not stored in history yet
     setError("");
     setSelectedConversationId(conversation.id);
@@ -537,9 +542,16 @@ ${response}
                       <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-semibold prose-code:font-mono prose-code:text-sm prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg">
                         <ReactMarkdown data-testid="text-response">{response}</ReactMarkdown>
                       </div>
+                      {metadata && (
+                        <div className="mt-4 pt-4 border-t border-border/50">
+                          <div className="text-xs text-muted-foreground">
+                            <ReactMarkdown data-testid="text-metadata">{metadata}</ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
                       {citations && (
                         <div className="mt-6 pt-6 border-t border-border">
-                          <h3 className="text-sm font-semibold uppercase tracking-wide mb-3">Citations</h3>
+                          <h3 className="text-sm font-semibold uppercase tracking-wide mb-3">Sources</h3>
                           <div className="prose prose-sm max-w-none dark:prose-invert text-muted-foreground">
                             <ReactMarkdown data-testid="text-citations">{citations}</ReactMarkdown>
                           </div>

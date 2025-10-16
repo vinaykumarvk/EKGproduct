@@ -19,15 +19,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (result && result.data) {
         // Log the full response to understand the structure
         console.log("Full Gradio API response:", JSON.stringify(result.data, null, 2));
+        console.log("Response array length:", Array.isArray(result.data) ? result.data.length : "Not an array");
         
         let responseText = "";
-        let citations = "";
+        let metadata = "";
+        let sources = "";
         
         if (Array.isArray(result.data)) {
-          // First element is the answer, second might be citations
+          // Index 0: Main answer with citation markers [1], [2], etc.
           responseText = typeof result.data[0] === 'string' ? result.data[0] : JSON.stringify(result.data[0]);
+          
+          // Index 1: Metadata (Mode, Model, Generated timestamp)
           if (result.data.length > 1 && result.data[1]) {
-            citations = typeof result.data[1] === 'string' ? result.data[1] : JSON.stringify(result.data[1]);
+            metadata = typeof result.data[1] === 'string' ? result.data[1] : JSON.stringify(result.data[1]);
+          }
+          
+          // Index 2 onwards: Citations/Sources
+          if (result.data.length > 2) {
+            const sourceParts = result.data.slice(2).filter(item => item && item.trim());
+            sources = sourceParts.join('\n\n');
+            console.log("Extracted sources:", sources);
           }
         } else {
           responseText = typeof result.data === 'string' ? result.data : JSON.stringify(result.data);
@@ -43,7 +54,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         res.json({
           data: responseText,
-          citations: citations || undefined,
+          metadata: metadata || undefined,
+          citations: sources || undefined,
         });
       } else {
         res.status(500).json({

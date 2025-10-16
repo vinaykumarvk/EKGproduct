@@ -6,9 +6,11 @@ A beautiful, production-ready chatbot interface for querying graph databases usi
 ## Current State (October 16, 2025)
 ✅ **Production-Ready Application** - All enhanced features implemented and tested
 - Question input with real-time character count
-- Three query modes: Balanced, Deep, Customer-Selected (concise)
+- Three query modes: Balanced, Deep, Concise
 - Cache toggle for refresh control
-- Markdown-formatted response display
+- Markdown-formatted response display with citation markers [1], [2]
+- **Metadata display** (Mode, Model, Generated timestamp)
+- **Sources section** (displays API-provided sources when available)
 - Copy to clipboard functionality
 - **Chat history with PostgreSQL database persistence**
 - **Advanced search and filtering in history sidebar**
@@ -124,9 +126,21 @@ A beautiful, production-ready chatbot interface for querying graph databases usi
 ```
 
 ### Response Format
+The API returns an array with 3 elements:
+```typescript
+[
+  "Answer text with citation markers [1], [2]...",  // Index 0
+  "**Mode:** DEEP\n**Model:** gpt-4o\n**Generated:** 2025-10-16 18:41:23",  // Index 1
+  "### Citations"  // Index 2 (header only, no source data)
+]
+```
+
+Backend transforms this to:
 ```typescript
 {
-  data: string, // Markdown-formatted response
+  data: string, // Markdown-formatted response (index 0)
+  metadata?: string, // Mode, Model, Generated timestamp (index 1)
+  citations?: string, // Sources if available (index 2+)
   error?: string // Optional error message
 }
 ```
