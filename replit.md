@@ -1,10 +1,16 @@
-# Graph Query Assistant - WealthEKG Chatbot
+# WealthForce Knowledge Agent - Enterprise AI Assistant
 
 ## Overview
-A beautiful, production-ready chatbot interface for querying graph databases using AI-powered insights. The application connects to the WealthEKG Gradio service and provides a polished user experience with markdown-formatted responses, multiple query modes, and caching options.
+A professional, enterprise-grade AI chatbot interface inspired by Claude, ChatGPT, and Intellect Design Arena's visual identity. The application provides an intelligent knowledge base for wealth management professionals, combining modern AI chat patterns with a trustworthy FinTech aesthetic.
 
 ## Current State (October 16, 2025)
-✅ **Production-Ready Application** - All enhanced features implemented and tested
+✅ **Enterprise Design Redesign Complete** - Intellect-inspired professional interface with Claude/ChatGPT patterns
+- **NEW: Professional blue color scheme** (210 hue corporate blue with blue-tinted surfaces)
+- **NEW: ChatGPT-inspired suggested prompts** for onboarding (4 starter questions)
+- **NEW: Card-based layouts** for responses, metadata, and sources
+- **NEW: Claude-style clean conversational interface**
+- **NEW: Enhanced header** with Sparkles icon and authenticated badge
+- **Professional typography** (Inter for UI, JetBrains Mono for code)
 - Question input with real-time character count
 - Three query modes: Balanced, Deep, Concise
 - Cache toggle for refresh control
@@ -205,11 +211,14 @@ Following Linear/Notion-inspired design system:
 - Responsive design verification
 
 ## Known Behaviors
-- Gradio API responses can take 30-60 seconds (external service limitation)
-- Theme preference persists in localStorage
-- API key stored in localStorage (for future use)
-- Empty question input disables submit button
-- Keyboard shortcuts: Enter to submit, Shift+Enter for newlines
+- **Gradio API responses** can take 30-60 seconds (external service limitation)
+- **Gradio API caching**: The external API may cache responses on its end regardless of our refresh parameter - this is a limitation of the vinaykumarvk/WealthEKG service
+- **Theme preference** persists in localStorage
+- **API key** stored in localStorage (for future use)
+- **Empty question input** disables submit button
+- **Keyboard shortcuts**: Enter to submit, Shift+Enter for newlines
+- **Card-based UI**: All responses, metadata, and sources display in professional cards
+- **Suggested prompts**: Only shown when no response exists (empty state)
 
 ## Development Commands
 - `npm run dev` - Start development server (port 5000)
