@@ -1,101 +1,158 @@
-# Graph Query Assistant - WealthEKG
+# Graph Query Assistant - WealthEKG Chatbot
 
 ## Overview
+A beautiful, production-ready chatbot interface for querying graph databases using AI-powered insights. The application connects to the WealthEKG Gradio service and provides a polished user experience with markdown-formatted responses, multiple query modes, and caching options.
 
-Graph Query Assistant is a web-based chatbot interface for querying graph databases with AI-powered natural language processing. The application allows users to ask questions about graph data in plain English, configure query modes (balanced, deep, or concise), and receive markdown-formatted responses. It integrates with the WealthEKG Gradio API to process questions and return insights from graph database queries.
+## Current State (October 16, 2025)
+✅ **Fully functional MVP** - All features tested and working perfectly
+- Question input with real-time character count
+- Three query modes: Balanced, Deep, Customer-Selected (concise)
+- Cache toggle for refresh control
+- Markdown-formatted response display
+- Copy to clipboard functionality
+- Light/Dark theme support
+- Comprehensive error handling
+- Beautiful loading states and animations
 
-The application features a modern, productivity-focused design system inspired by Linear and Notion, with support for both light and dark themes. It provides a clean, efficient interface optimized for developer tools and data exploration workflows.
+## Features Implemented
 
-## User Preferences
+### Core Functionality
+1. **Query Interface**
+   - Large textarea for question input with character counter
+   - Mode selector dropdown (Balanced/Deep/Customer-Selected)
+   - Cache toggle switch with visual feedback
+   - Submit button with loading states
+   - Enter to submit, Shift+Enter for newlines
 
-Preferred communication style: Simple, everyday language.
+2. **Response Display**
+   - Markdown rendering with proper styling
+   - Code blocks with JetBrains Mono font
+   - Loading skeleton animations
+   - Error messages displayed inline with red border
+   - Success state with green border
+   - Copy response to clipboard
 
-## System Architecture
+3. **User Experience**
+   - Theme toggle (light/dark mode) - preserved in localStorage
+   - Responsive design (desktop two-column, mobile stacked)
+   - Toast notifications for actions
+   - Disabled states during processing
+   - Empty state messages
 
-### Frontend Architecture
+## Project Structure
 
-**Framework & Build System**
-- React 18+ with TypeScript for type-safe component development
-- Vite as the build tool and development server for fast HMR and optimized production builds
-- React Router (Wouter) for lightweight client-side routing
+### Frontend (`client/src/`)
+- **pages/chatbot.tsx** - Main chatbot interface with all UI logic
+- **components/theme-provider.tsx** - Dark/light mode management
+- **App.tsx** - Main app with routing and providers
+- **lib/queryClient.ts** - TanStack Query configuration
 
-**UI Component System**
-- shadcn/ui component library with Radix UI primitives for accessible, customizable components
-- Tailwind CSS for utility-first styling with custom design tokens
-- Class Variance Authority (CVA) for component variant management
-- Design system follows Linear/Notion-inspired patterns with focus on productivity and clean aesthetics
+### Backend (`server/`)
+- **routes.ts** - API endpoint for Gradio integration
+  - POST `/api/query` - Processes questions and returns markdown responses
+  - Validates input with Zod schemas
+  - Extracts string from Gradio array response
+  - Comprehensive error handling
 
-**State Management**
-- TanStack Query (React Query) for server state management, caching, and data fetching
-- React hooks for local component state
-- Form state managed via React Hook Form with Zod validation
+### Shared (`shared/`)
+- **schema.ts** - TypeScript types and Zod schemas
+  - Query schema: question, mode, refresh
+  - Response schema: data (markdown), error
 
-**Theming**
-- CSS variables-based theming system supporting light and dark modes
-- Theme persistence via localStorage
-- Comprehensive color palette with semantic tokens (primary, secondary, destructive, muted, accent)
-- Typography system using Inter (UI) and JetBrains Mono (code/monospace) fonts
+## API Integration
 
-### Backend Architecture
+### Gradio Service
+- Endpoint: `vinaykumarvk/WealthEKG`
+- Method: `/process_question`
+- Package: `@gradio/client`
+- Response time: 30-60 seconds (slow but working)
 
-**Server Framework**
-- Express.js as the HTTP server framework
-- TypeScript for type safety across the entire stack
-- Custom middleware for request logging and error handling
+### Request Payload
+```typescript
+{
+  question: string,
+  mode: "balanced" | "deep" | "concise",
+  refresh: boolean
+}
+```
 
-**API Design**
-- RESTful API endpoint (`/api/query`) for query processing
-- Request/response validation using Zod schemas
-- Centralized error handling with appropriate HTTP status codes
+### Response Format
+```typescript
+{
+  data: string, // Markdown-formatted response
+  error?: string // Optional error message
+}
+```
 
-**Development Tools**
-- Vite middleware integration for seamless HMR in development
-- Separate build processes for client (Vite) and server (esbuild)
-- TypeScript path aliases for clean imports (@/, @shared/)
+## Design System
 
-### Data Storage Solutions
+### Color Palette
+Following Linear/Notion-inspired design system:
+- **Primary**: Vibrant blue (220 90% 56%) for actions
+- **Success**: Green (142 76% 36%) for cache/success states
+- **Destructive**: Red (0 84% 60%) for errors
+- **Background**: Deep charcoal (15 8% 8%) in dark mode
+- **Surface**: Elevated cards (15 8% 12%)
 
-**Database Configuration**
-- Drizzle ORM configured for PostgreSQL with Neon serverless driver
-- Schema definitions in TypeScript with Drizzle-Zod integration
-- Migration system setup via drizzle-kit
-- In-memory storage implementation for user management (extensible to database)
+### Typography
+- **Primary Font**: Inter (400, 500, 600)
+- **Code Font**: JetBrains Mono (400, 500)
+- Title: 2xl font-semibold
+- Labels: sm font-medium uppercase
+- Body: base (16px)
 
-**Data Models**
-- Query schema: question (string), mode (enum: balanced/deep/concise), refresh (boolean)
-- Response schema: data (markdown string), optional error field
-- User schema: username, password, with UUID-based IDs
+### Spacing
+- Micro spacing: 2, 4
+- Component padding: 6, 8
+- Section spacing: 12, 16
+- Max-width: 5xl with mx-auto
 
-### Authentication & Authorization
+## Technical Stack
 
-Currently implements a minimal authentication structure with:
-- In-memory user storage (IStorage interface)
-- Extensible storage interface ready for database implementation
-- Session management foundation (connect-pg-simple package available)
+### Dependencies
+- **@gradio/client** - Gradio API integration
+- **react-markdown** - Markdown rendering
+- **@tanstack/react-query** - Data fetching/mutations
+- **wouter** - Routing
+- **zod** - Schema validation
+- **lucide-react** - Icons
+- **shadcn/ui** - UI components
 
-**Design Decision**: Authentication is scaffolded but not fully implemented, allowing for future integration without restructuring the core application.
+### Key Patterns
+- Schema-first development with TypeScript
+- TanStack Query for async state management
+- Controlled forms with real-time validation
+- Error boundaries with inline error display
+- Optimistic UI updates
 
-### External Dependencies
+## Testing
+✅ All end-to-end tests passing:
+- Question submission across all modes
+- Cache toggle functionality
+- Response rendering and copy feature
+- Theme switching
+- Loading/error/empty states
+- Responsive design verification
 
-**Third-Party APIs**
-- **Gradio Client**: Primary integration with WealthEKG Gradio API (vinaykumarvk/WealthEKG)
-  - Endpoint: `/process_question`
-  - Handles natural language query processing
-  - Returns markdown-formatted responses from graph database queries
-  - Supports query modes (balanced, deep, concise) and cache refresh control
+## Known Behaviors
+- Gradio API responses can take 30-60 seconds (external service limitation)
+- Theme preference persists in localStorage
+- Empty question input disables submit button
+- Keyboard shortcuts: Enter to submit, Shift+Enter for newlines
 
-**Database Services**
-- **Neon Database**: Serverless PostgreSQL configured via DATABASE_URL environment variable
-- Connection pooling via @neondatabase/serverless driver
+## Future Enhancements (User Requested)
+- Chat history to view previous Q&A
+- Request/response caching on frontend
+- Conversation export (markdown, PDF)
+- Advanced filters and search in history
+- API authentication support (when switching from public API)
 
-**UI Libraries & Tools**
-- Radix UI: Headless component primitives for accessibility
-- Lucide React: Icon library
-- React Markdown: Markdown rendering for query responses
-- date-fns: Date manipulation utilities
+## Development Commands
+- `npm run dev` - Start development server (port 5000)
+- Workflow: "Start application" - Auto-restart on changes
 
-**Development Dependencies**
-- Replit plugins: Vite integration, error overlay, cartographer, dev banner
-- PostCSS with Autoprefixer for CSS processing
-
-**Design Rationale**: The Gradio Client integration provides a clean separation between the UI layer and the graph database query logic. This allows the WealthEKG service to handle complex graph traversal and AI processing while the frontend focuses on user experience and response presentation.
+## Notes
+- No database used (stateless application)
+- No authentication required (public API)
+- All state managed in React components
+- Follows design_guidelines.md religiously
