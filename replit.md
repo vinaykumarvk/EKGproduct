@@ -3,6 +3,14 @@
 ## Overview
 The WealthForce Knowledge Agent is an enterprise-grade conversational AI chatbot, inspired by ChatGPT and Claude, designed to provide an intelligent knowledge base for wealth management professionals. Its primary purpose is to offer a sophisticated interface with full conversational threading, context maintenance, and persistent chat history, enhancing knowledge retrieval and interaction for financial experts. The project aims to deliver a professional, intuitive, and highly functional AI assistant.
 
+## Recent Changes
+
+### October 19, 2025
+- **Professional Response Formatting**: Removed technical headers ("KG + VectorStore Answer"), context IDs, and "Question:" labels for cleaner display. Converted API formatting (Point 1:, Finding 1/) to standard bullet points.
+- **Download & Export Features**: Added dropdown menu with Markdown (.md) and PDF (.pdf) export options for individual messages. PDF generation includes automatic pagination for long content.
+- **Regenerate Functionality**: Implemented regenerate button for assistant messages to resubmit questions while maintaining conversation context. Uses mutation variables to prevent stale state issues.
+- **Layout Improvements**: Moved "Generated:" timestamp to bottom of responses, removed zero-gap spacing between citation lines, and unified question/answer text styling.
+
 ## User Preferences
 I prefer simple language and detailed explanations. I want iterative development with frequent, small updates rather than large, infrequent ones. Ask before making major changes to the architecture or core functionalities. Do not make changes to the `shared/` folder without explicit instruction.
 
@@ -28,7 +36,10 @@ The UI is inspired by ChatGPT, featuring a two-column layout with a fixed sideba
 - **Core Conversational Interface**: ChatGPT-style scrolling message view with fixed input, auto-scroll, and keyboard shortcuts (Enter to send, Shift+Enter for newlines).
 - **Context Maintenance**: Automatic inclusion of `conversation_id` or `response_id` in follow-up questions to maintain server-side context.
 - **Markdown Rendering**: Robust markdown rendering for assistant messages, supporting GitHub-flavored markdown, HTML rendering (citations, links), HTML entity decoding, and removal of Knowledge Graph tags.
+- **Professional Formatting**: Removes technical headers ("KG + VectorStore Answer", context IDs, "Question:" labels) and reformats API output (converting "Point 1:", "Finding 1/" to clean bullet points). Question and answer text use consistent styling.
 - **Sources Display**: Shows up to 3 source documents with filenames, relevance scores, and full source count below assistant messages.
+- **Download & Export**: Individual answers can be exported as Markdown (.md) or PDF (.pdf) files via dropdown menu. PDF export includes automatic pagination for long content.
+- **Regenerate Functionality**: Each assistant message has a "Regenerate" button that resubmits the same question to get a fresh response while maintaining conversation context.
 - **User Experience**: Includes theme toggle, responsive design, toast notifications, disabled states during processing, and welcoming empty states.
 
 ### System Design Choices
@@ -57,3 +68,4 @@ The UI is inspired by ChatGPT, featuring a two-column layout with a fixed sideba
     - `lucide-react`: Icons.
     - `shadcn/ui`: UI component library.
     - `date-fns`: Date formatting utilities.
+    - `jspdf`: PDF generation for export functionality.
