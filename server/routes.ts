@@ -51,6 +51,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         apiPayload.response_id = previousResponseId;
       }
       
+      console.log("EKG API request payload:", JSON.stringify(apiPayload, null, 2));
+      
       // Call the EKG API
       const response = await fetch(`${EKG_API_URL}/v1/answer`, {
         method: "POST",
