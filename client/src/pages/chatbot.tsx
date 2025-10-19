@@ -31,6 +31,11 @@ function decodeHTMLEntities(text: string): string {
   return textarea.value;
 }
 
+// Helper function to remove Knowledge Graph tags like [KG: otp]
+function removeKGTags(text: string): string {
+  return text.replace(/\s*\[KG:\s*[^\]]+\]/gi, '');
+}
+
 export default function ChatbotPage() {
   const [question, setQuestion] = useState("");
   const [currentThreadId, setCurrentThreadId] = useState<number | undefined>();
@@ -280,7 +285,7 @@ export default function ChatbotPage() {
                           rehypePlugins={[rehypeRaw]}
                           remarkPlugins={[remarkGfm]}
                         >
-                          {decodeHTMLEntities(message.content)}
+                          {removeKGTags(decodeHTMLEntities(message.content))}
                         </ReactMarkdown>
                       </div>
                     )}
