@@ -1,231 +1,285 @@
 # WealthForce Knowledge Agent - Enterprise AI Assistant
 
 ## Overview
-A professional, enterprise-grade AI chatbot interface inspired by Claude, ChatGPT, and Intellect Design Arena's visual identity. The application provides an intelligent knowledge base for wealth management professionals, combining modern AI chat patterns with a trustworthy FinTech aesthetic.
+A professional, enterprise-grade conversational AI chatbot interface inspired by ChatGPT and Claude. The application provides an intelligent knowledge base for wealth management professionals with full conversational threading, context maintenance, and persistent chat history.
 
-## Current State (October 16, 2025)
-✅ **Enterprise Design Redesign Complete** - Intellect-inspired professional interface with Claude/ChatGPT patterns
-- **NEW: Professional blue color scheme** (210 hue corporate blue with blue-tinted surfaces)
-- **NEW: ChatGPT-inspired suggested prompts** for onboarding (4 starter questions)
-- **NEW: Card-based layouts** for responses, metadata, and sources
-- **NEW: Claude-style clean conversational interface**
-- **NEW: Enhanced header** with Sparkles icon and authenticated badge
-- **Professional typography** (Inter for UI, JetBrains Mono for code)
-- Question input with real-time character count
-- Three query modes: Balanced, Deep, Concise
-- Cache toggle for refresh control
-- Markdown-formatted response display with citation markers [1], [2]
-- **Metadata display** (Mode, Model, Generated timestamp) below each response
-- **Sources section** (displays API-provided sources with document names when available)
-  - Intelligently hides when API returns only header without actual sources
-  - Shows formatted citations like "**[1]** → filename.pdf"
-- Copy to clipboard functionality
-- **Chat history with PostgreSQL database persistence**
-- **Advanced search and filtering in history sidebar**
-- **Export conversations as Markdown or PDF**
-- **API authentication settings (for future use)**
+## Current State (October 19, 2025)
+✅ **Conversational Threading Architecture Complete** - ChatGPT-style interface with running context
+- **NEW: Full conversational threading** with context maintained across questions via response_id
+- **NEW: ChatGPT-style UI** with scrolling messages, fixed bottom input, and thread sidebar
+- **NEW: Thread management** - Create, switch, search, and delete conversation threads
+- **NEW: Hybrid context system** - API maintains context via response_id, database stores history
+- **NEW: Message-based architecture** - User/assistant message bubbles with role-based styling
+- **REST API integration** - Using EKG service endpoint (https://ekg-service-47249889063.europe-west6.run.app/v1/answer)
+- **Professional typography** (Inter for UI, markdown rendering for responses)
+- Markdown-formatted responses with proper styling
+- **Database persistence** - PostgreSQL with threads and messages tables
+- Thread sidebar with search functionality
+- Optimistic UI updates for responsive feel
 - Light/Dark theme support
 - Comprehensive error handling
 - Beautiful loading states and animations
 
+## Architecture
+
+### Conversational Threading
+The application uses a hybrid approach to maintain conversation context:
+
+1. **API Context Chaining**: The EKG API maintains server-side context using `response_id`
+   - First question in thread: No `response_id` sent
+   - Follow-up questions: Last assistant message's `response_id` sent to API
+   - API uses `response_id` to maintain conversation context
+
+2. **Database Persistence**: PostgreSQL stores all threads and messages
+   - Threads: Conversation sessions with title and timestamps
+   - Messages: Individual Q&A pairs with role (user/assistant) and response_id
+   - Enables thread switching and conversation history retrieval
+
+3. **Frontend State Management**: React state + TanStack Query
+   - Optimistic updates for new messages
+   - Database fetching for thread history
+   - Automatic cache invalidation on mutations
+
 ## Features Implemented
 
 ### Core Functionality
-1. **Query Interface**
-   - Large textarea for question input with character counter
-   - Mode selector dropdown (Balanced/Deep/Customer-Selected)
-   - Cache toggle switch with visual feedback
-   - Submit button with loading states
-   - Enter to submit, Shift+Enter for newlines
+1. **Conversational Interface**
+   - ChatGPT-style scrolling message view
+   - User messages on right (blue bubble)
+   - Assistant messages on left (gray bubble) with AI icon
+   - Fixed input area at bottom
+   - Auto-scroll to latest message
+   - Enter to send, Shift+Enter for newlines
 
-2. **Response Display**
-   - Markdown rendering with proper styling
-   - Code blocks with JetBrains Mono font
-   - Loading skeleton animations
-   - Error messages displayed inline with red border
-   - Success state with green border
-   - Copy response to clipboard
+2. **Thread Management**
+   - Create new threads automatically on first question
+   - Thread title auto-generated from first question (truncated to 60 chars)
+   - Switch between threads to view conversation history
+   - Search threads by title
+   - Delete individual threads
+   - Thread list shows last activity timestamp
 
-3. **Chat History (NEW)**
-   - PostgreSQL database persistence
-   - Collapsible sidebar with conversation list
-   - Auto-saves every successful query
-   - Shows timestamps, mode, and question preview
-   - Click to load previous conversations
-   - Delete individual conversations
-   - Toggle sidebar visibility
+3. **Context Maintenance**
+   - Follow-up questions automatically include response_id
+   - API maintains conversation context server-side
+   - Context persists across thread switches
+   - Context survives page refreshes
 
-4. **Search & Filtering (NEW)**
-   - Real-time search by question text
-   - Filter by query mode (All/Balanced/Deep/Concise)
-   - Combined search and filter logic
-   - Shows "X of Y conversations" count
-   - Clear filters button
-   - Empty state for no matches
+4. **Message Display**
+   - User messages: Plain text in blue bubbles
+   - Assistant messages: Markdown-rendered with code blocks
+   - Loading indicator while API processes
+   - Error messages displayed inline
+   - Empty state for new conversations
 
-5. **Export Functionality (NEW)**
-   - Export conversations as Markdown (.md)
-   - Export conversations as PDF
-   - Includes metadata (timestamp, mode, cache status)
-   - Download with timestamped filenames
-   - Dropdown menu for format selection
-
-6. **API Authentication (NEW)**
-   - Settings dialog for API key configuration
-   - Secure storage in localStorage
-   - Auth status indicator in header
-   - Prepared for future authenticated endpoints
-   - Currently using public API (vinaykumarvk/WealthEKG)
-   - **Note**: To use auth with Gradio client, add `hf_token` or `headers` parameter when initializing the client in `server/routes.ts`
-
-7. **User Experience**
+5. **User Experience**
    - Theme toggle (light/dark mode) - preserved in localStorage
-   - Responsive design (desktop two-column, mobile stacked)
+   - Responsive design
    - Toast notifications for actions
    - Disabled states during processing
-   - Empty state messages
+   - Empty state with welcoming message
 
 ## Project Structure
 
 ### Frontend (`client/src/`)
-- **pages/chatbot.tsx** - Main chatbot interface with query UI, export, settings
-- **components/history-sidebar.tsx** - Chat history sidebar with search/filter
+- **pages/chatbot.tsx** - Main conversational interface
+  - Thread state management
+  - Message display with scrolling
+  - Fixed bottom input area
+  - Query mutations with threadId support
+- **components/thread-sidebar.tsx** - Thread list sidebar
+  - New chat button
+  - Search functionality
+  - Thread selection
+  - Delete thread actions
 - **components/theme-provider.tsx** - Dark/light mode management
 - **App.tsx** - Main app with routing and providers
 - **lib/queryClient.ts** - TanStack Query configuration
 
 ### Backend (`server/`)
 - **routes.ts** - API endpoints
-  - POST `/api/query` - Processes questions via Gradio and auto-saves to DB
-  - GET `/api/conversations` - Retrieves chat history
-  - DELETE `/api/conversations/:id` - Deletes conversation
+  - POST `/api/query` - Processes questions, handles threading, chains response_id
+  - GET `/api/threads` - Retrieves all threads
+  - GET `/api/threads/:id` - Get single thread
+  - GET `/api/threads/:id/messages` - Get messages for a thread
+  - DELETE `/api/threads/:id` - Delete thread and messages
+  - Legacy endpoints for backward compatibility
   - Validates input with Zod schemas
   - Comprehensive error handling
 - **storage.ts** - Database storage interface
-  - MemStorage for development
-  - Conversation CRUD operations
+  - DbStorage using Drizzle ORM
+  - Thread CRUD operations
+  - Message CRUD operations
+  - getLastAssistantMessage for response_id retrieval
 
-### Database (`db/`)
+### Database (`shared/`)
 - **schema.ts** - Drizzle ORM schema
-  - Conversations table (id, question, mode, useCache, response, createdAt)
+  - **threads** table: id, title, createdAt, updatedAt
+  - **messages** table: id, threadId, role, content, responseId, sources, metadata, createdAt
+  - Relationships: thread has many messages
+  - Cascading delete: deleting thread deletes all messages
 - PostgreSQL database for persistence
 
 ### Shared (`shared/`)
 - **schema.ts** - TypeScript types and Zod schemas
-  - Query schema: question, mode, refresh
-  - Response schema: data (markdown), error
-  - Conversation schema: full conversation type
+  - Query schema: question, mode, refresh, threadId (optional)
+  - Response schema: data, metadata, citations, responseId, threadId, isConversational
+  - Thread schema: full thread type
+  - Message schema: full message type with role enum
 
 ## API Integration
 
-### Gradio Service
-- Endpoint: `vinaykumarvk/WealthEKG`
-- Method: `/process_question`
-- Package: `@gradio/client`
-- Response time: 30-60 seconds (slow but working)
+### EKG REST Service
+- Endpoint: `https://ekg-service-47249889063.europe-west6.run.app/v1/answer`
+- Method: POST
+- Package: Native fetch API
+- Response time: Variable (typically < 10 seconds)
 
 ### Request Payload
 ```typescript
 {
   question: string,
-  mode: "balanced" | "deep" | "concise",
-  refresh: boolean
+  domain: "wealth_management",
+  response_id?: string // Optional, for follow-up questions
 }
 ```
 
 ### Response Format
-The API returns an array with 3 elements:
-```typescript
-[
-  "Answer text with citation markers [1], [2]...",  // Index 0
-  "**Mode:** DEEP\n**Model:** gpt-4o\n**Generated:** 2025-10-16 18:41:23",  // Index 1
-  "### Citations"  // Index 2 (header only, no source data)
-]
-```
-
-Backend transforms this to:
 ```typescript
 {
-  data: string, // Markdown-formatted response (index 0)
-  metadata?: string, // Mode, Model, Generated timestamp (index 1)
-  citations?: string, // Sources if available (index 2+)
-  error?: string // Optional error message
+  answer: string, // Markdown-formatted response
+  response_id: string, // For context chaining
+  sources: Array<any>, // Citation sources
+  entities: Array<string>, // Related entities
+  meta: {
+    model: string,
+    nodes: number,
+    edges: number,
+    mode: string,
+    is_conversational: boolean,
+    suggested_entities: Array<string>,
+    seed_ids: Array<string>,
+    expanded_nodes: number,
+    expanded_edges: number
+  },
+  mode: string,
+  timestamp: string
 }
 ```
+
+### Conversational Flow
+1. **New Thread**:
+   - User asks question (no threadId)
+   - Backend creates new thread with title from question
+   - API request sent without response_id
+   - User message saved
+   - Assistant message saved with response_id from API
+   - Frontend displays both messages
+
+2. **Follow-up Question**:
+   - User asks question (with threadId)
+   - Backend gets last assistant message's response_id
+   - API request sent WITH response_id
+   - User message saved
+   - Assistant message saved with new response_id
+   - Thread timestamp updated
+   - Frontend displays updated conversation
+
+3. **Thread Switch**:
+   - User selects different thread
+   - Frontend fetches all messages for thread
+   - Messages displayed in chronological order
+   - New questions continue that thread's context
 
 ## Design System
 
 ### Color Palette
-Following Linear/Notion-inspired design system:
-- **Primary**: Vibrant blue (220 90% 56%) for actions
-- **Success**: Green (142 76% 36%) for cache/success states
-- **Destructive**: Red (0 84% 60%) for errors
+Following ChatGPT/Claude-inspired design:
+- **Primary**: Vibrant blue (220 90% 56%) for user messages and actions
+- **Muted**: Gray tones for assistant messages
 - **Background**: Deep charcoal (15 8% 8%) in dark mode
 - **Surface**: Elevated cards (15 8% 12%)
 
 ### Typography
 - **Primary Font**: Inter (400, 500, 600)
-- **Code Font**: JetBrains Mono (400, 500)
+- **Message Font**: System fonts for readability
+- **Code Font**: Monospace for code blocks
 - Title: 2xl font-semibold
-- Labels: sm font-medium uppercase
-- Body: base (16px)
+- Messages: Base (16px)
 
-### Spacing
-- Micro spacing: 2, 4
-- Component padding: 6, 8
-- Section spacing: 12, 16
-- Max-width: 5xl with mx-auto
+### Layout
+- **Two-column layout**: Sidebar (256px) + Main content (flex-1)
+- **Fixed header**: Logo and title at top
+- **Scrolling content**: Messages area with auto-scroll
+- **Fixed footer**: Input area always visible
 
 ## Technical Stack
 
 ### Dependencies
-- **@gradio/client** - Gradio API integration
-- **react-markdown** - Markdown rendering
-- **@tanstack/react-query** - Data fetching/mutations
+- **react-markdown** - Markdown rendering in assistant messages
+- **@tanstack/react-query** - Data fetching/mutations with cache management
 - **wouter** - Routing
 - **zod** - Schema validation
-- **lucide-react** - Icons
-- **shadcn/ui** - UI components
-- **jsPDF** - PDF export functionality
+- **lucide-react** - Icons (Sparkles for AI, User for user, etc.)
+- **shadcn/ui** - UI components (Button, ScrollArea, Textarea, etc.)
 - **drizzle-orm** - Database ORM
 - **@neondatabase/serverless** - PostgreSQL client
+- **date-fns** - Date formatting (formatDistanceToNow)
 
 ### Key Patterns
 - Schema-first development with TypeScript
 - TanStack Query for async state management
-- Controlled forms with real-time validation
-- Error boundaries with inline error display
-- Optimistic UI updates
+- Optimistic UI updates with database as source of truth
+- Hybrid context management (API + Database)
+- Component composition (ThreadSidebar + ChatbotPage)
+- Controlled forms with keyboard shortcuts
 
-## Testing
-✅ All end-to-end tests passing:
-- Question submission across all modes
-- Cache toggle functionality
-- Response rendering and copy feature
-- Chat history persistence and loading
-- Search and filter functionality
-- Export to Markdown and PDF
-- API key settings and persistence
-- Theme switching
-- Loading/error/empty states
-- Responsive design verification
+## Testing Recommendations
+End-to-end testing should cover:
+- Thread creation on first question
+- Follow-up questions maintaining context via response_id
+- Thread switching loading correct message history
+- Search filtering threads correctly
+- Thread deletion removing all messages
+- Page refresh preserving thread state
+- Optimistic updates showing messages immediately
+- Error handling for API failures
+- Empty states and loading indicators
 
 ## Known Behaviors
-- **Gradio API responses** can take 30-60 seconds (external service limitation)
-- **Gradio API caching**: The external API may cache responses on its end regardless of our refresh parameter - this is a limitation of the vinaykumarvk/WealthEKG service
-- **Theme preference** persists in localStorage
-- **API key** stored in localStorage (for future use)
-- **Empty question input** disables submit button
+- **API Context**: EKG API maintains conversation context via response_id parameter
+- **Thread Titles**: Auto-generated from first question (max 60 characters)
+- **Message Storage**: Both user and assistant messages stored in database
+- **Response_id Chaining**: Each follow-up question sends previous assistant's response_id
+- **Theme preference**: Persists in localStorage
+- **Empty question input**: Disables submit button
 - **Keyboard shortcuts**: Enter to submit, Shift+Enter for newlines
-- **Card-based UI**: All responses, metadata, and sources display in professional cards
-- **Suggested prompts**: Only shown when no response exists (empty state)
+- **Auto-scroll**: Automatically scrolls to newest message
+- **Thread sidebar**: Shows threads ordered by last update (most recent first)
 
 ## Development Commands
 - `npm run dev` - Start development server (port 5000)
+- `npm run db:push` - Push database schema changes
 - Workflow: "Start application" - Auto-restart on changes
 
+## Database Migration Notes
+- Schema uses serial IDs for auto-increment
+- Threads and messages have foreign key relationship
+- Cascading delete: deleting thread removes all messages
+- responseId stored as nullable text for API context chaining
+- sources and metadata stored as JSON text for flexibility
+
+## Architecture Decisions
+1. **Hybrid Context**: API manages active conversation context (response_id), database stores history
+2. **Message-based**: Separate user/assistant messages instead of Q&A pairs
+3. **Optimistic Updates**: UI updates immediately, database syncs in background
+4. **Thread Auto-creation**: No explicit "new thread" step, created on first question
+5. **Search in Sidebar**: Thread search rather than message search for better UX
+6. **Fixed Layout**: Input always visible at bottom (ChatGPT pattern)
+
 ## Notes
-- PostgreSQL database used for chat history
-- No authentication required for current public API
-- API key setting prepared for future authenticated endpoints
-- Follows design_guidelines.md religiously
+- PostgreSQL database used for all persistence
+- No authentication required for current EKG API endpoint
+- response_id is the key to maintaining conversational context
+- Thread switching is instant (local state management)
+- Message fetching uses proper query keys for cache invalidation
