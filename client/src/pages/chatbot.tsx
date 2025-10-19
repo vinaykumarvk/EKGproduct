@@ -16,7 +16,9 @@ import {
   Loader2, 
   Send, 
   Sparkles,
-  User
+  User,
+  Download,
+  RefreshCw
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
@@ -50,6 +52,64 @@ function cleanupCitations(text: string): string {
   return cleaned;
 }
 
+// Helper function to download a single message exchange
+function downloadMessage(userMessage: string, assistantMessage: string, timestamp: string) {
+  const content = `WealthForce Knowledge Agent - Conversation Export
+Generated: ${new Date(timestamp).toLocaleString()}
+
+========================================
+Question:
+${userMessage}
+
+========================================
+Answer:
+${assistantMessage}
+
+========================================
+`;
+
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `answer-${new Date(timestamp).toISOString().slice(0, 10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Helper function to download entire thread conversation
+function downloadThread(messages: Message[], threadTitle: string) {
+  let content = `WealthForce Knowledge Agent - Full Conversation Export
+Thread: ${threadTitle}
+Generated: ${new Date().toLocaleString()}
+
+========================================\n\n`;
+
+  for (let i = 0; i < messages.length; i += 2) {
+    const userMsg = messages[i];
+    const assistantMsg = messages[i + 1];
+    
+    if (userMsg && assistantMsg) {
+      content += `[${new Date(userMsg.createdAt).toLocaleString()}]\n`;
+      content += `Question:\n${userMsg.content}\n\n`;
+      content += `Answer:\n${assistantMsg.content}\n\n`;
+      content += `========================================\n\n`;
+    }
+  }
+
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `conversation-${threadTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export default function ChatbotPage() {
   const [question, setQuestion] = useState("");
   const [currentThreadId, setCurrentThreadId] = useState<number | undefined>();
@@ -57,6 +117,12 @@ export default function ChatbotPage() {
   const [mode, setMode] = useState<"concise" | "balanced" | "deep">("concise"); // Short is default
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Fetch current thread details
+  const { data: currentThread } = useQuery<Thread>({
+    queryKey: [`/api/threads/${currentThreadId}`],
+    enabled: !!currentThreadId,
+  });
 
   // Fetch messages when thread is selected
   const { data: fetchedMessages, refetch: refetchMessages } = useQuery<Message[]>({
@@ -230,8 +296,21 @@ export default function ChatbotPage() {
               </div>
             </div>
             
-            {/* Mode Selector */}
-            <div className="flex items-center gap-2">
+            {/* Mode Selector and Actions */}
+            <div className="flex items-center gap-3">
+              {/* Download Thread Button */}
+              {currentThreadId && hasMessages && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="button-download-thread"
+                  onClick={() => downloadThread(messages, currentThread?.title || "Conversation")}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Thread
+                </Button>
+              )}
+              
               <span className="text-sm text-muted-foreground">Mode:</span>
               <Select value={mode} onValueChange={(value) => setMode(value as "concise" | "balanced" | "deep")}>
                 <SelectTrigger className="w-[160px]" data-testid="select-mode">
@@ -269,48 +348,90 @@ export default function ChatbotPage() {
               </div>
             )}
 
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`mb-6 flex gap-4 ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-                data-testid={`message-${message.role}-${message.id}`}
-              >
-                {message.role === "assistant" && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                  </div>
-                )}
-                
+            {messages.map((message, index) => {
+              // Find the corresponding user message for this assistant message
+              const userMessage = message.role === "assistant" && index > 0 ? messages[index - 1] : null;
+              
+              return (
                 <div
-                  className={`max-w-[80%] rounded-lg px-4 py-3 ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                  key={message.id}
+                  className={`mb-6 flex gap-4 ${
+                    message.role === "user" ? "justify-end" : "justify-start"
                   }`}
+                  data-testid={`message-${message.role}-${message.id}`}
                 >
-                  {message.role === "user" ? (
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  ) : (
-                    <div className="prose prose-sm max-w-none dark:prose-invert prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
-                      <ReactMarkdown 
-                        rehypePlugins={[rehypeRaw]}
-                        remarkPlugins={[remarkGfm]}
-                      >
-                        {cleanupCitations(removeKGTags(decodeHTMLEntities(message.content)))}
-                      </ReactMarkdown>
+                  {message.role === "assistant" && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                    </div>
+                  )}
+                  
+                  <div className="flex-1 max-w-[80%]">
+                    <div
+                      className={`rounded-lg px-4 py-3 ${
+                        message.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      }`}
+                    >
+                      {message.role === "user" ? (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      ) : (
+                        <div className="prose prose-sm max-w-none dark:prose-invert prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+                          <ReactMarkdown 
+                            rehypePlugins={[rehypeRaw]}
+                            remarkPlugins={[remarkGfm]}
+                          >
+                            {cleanupCitations(removeKGTags(decodeHTMLEntities(message.content)))}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Action buttons for assistant messages */}
+                    {message.role === "assistant" && userMessage && (
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs"
+                          data-testid={`button-download-message-${message.id}`}
+                          onClick={() => downloadMessage(
+                            userMessage.content,
+                            message.content,
+                            message.createdAt
+                          )}
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          Download
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs"
+                          data-testid={`button-refresh-message-${message.id}`}
+                          onClick={() => {
+                            toast({
+                              title: "Regenerate Answer",
+                              description: "This feature will regenerate the answer with the same question.",
+                            });
+                          }}
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Regenerate
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {message.role === "user" && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                      <User className="w-4 h-4 text-foreground" />
                     </div>
                   )}
                 </div>
-
-                {message.role === "user" && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                    <User className="w-4 h-4 text-foreground" />
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
 
             {isLoading && (
               <div className="mb-6 flex gap-4 justify-start" data-testid="loading-indicator">
