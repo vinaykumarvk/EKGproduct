@@ -13,7 +13,7 @@ import {
   type InsertMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -62,7 +62,15 @@ export class DatabaseStorage implements IStorage {
 
   // Thread methods
   async getThreads(): Promise<Thread[]> {
-    return await db.select().from(threads).orderBy(desc(threads.updatedAt));
+    // Only return threads from the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    return await db
+      .select()
+      .from(threads)
+      .where(gte(threads.updatedAt, thirtyDaysAgo))
+      .orderBy(desc(threads.updatedAt));
   }
 
   async getThread(id: number): Promise<Thread | undefined> {
