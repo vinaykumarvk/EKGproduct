@@ -357,4 +357,20 @@
   .prose pre code {
     @apply bg-transparent px-0 py-0;
   }
+  
+  /* Compact citations display - reduce gaps between items */
+  .prose h2#citations + p,
+  .prose h2 + p:has(a[id^="cite-"]) {
+    @apply mb-1;
+  }
+  
+  /* Make citation entries more compact */
+  .prose p:has(a[id^="cite-"]) {
+    @apply mb-1 leading-snug;
+  }
+  
+  /* Remove bold from citation filenames */
+  .prose p:has(a[id^="cite-"]) strong {
+    @apply font-normal;
+  }
 }
