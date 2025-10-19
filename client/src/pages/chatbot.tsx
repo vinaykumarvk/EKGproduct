@@ -1,150 +1,115 @@
-import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Loader2, 
   Send, 
-  Copy, 
-  Check, 
-  History, 
-  Download, 
-  FileText, 
-  FileDown, 
-  Settings, 
-  Key,
   Sparkles,
-  TrendingUp,
-  FileQuestion,
-  Shield
+  User
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { HistorySidebar } from "@/components/history-sidebar";
-import type { Query, QueryResponse, Conversation } from "@shared/schema";
-import jsPDF from "jspdf";
-
-// Suggested prompts for onboarding (ChatGPT-inspired)
-const SUGGESTED_PROMPTS = [
-  {
-    icon: TrendingUp,
-    text: "What are the steps in mutual funds order placement?",
-    description: "Process workflow"
-  },
-  {
-    icon: Shield,
-    text: "Explain the compliance requirements for transactions",
-    description: "Regulatory compliance"
-  },
-  {
-    icon: FileQuestion,
-    text: "How does the OTP verification process work?",
-    description: "Security process"
-  },
-  {
-    icon: Sparkles,
-    text: "What is the risk profiling process?",
-    description: "Risk assessment"
-  }
-];
+import { ThreadSidebar } from "@/components/thread-sidebar";
+import type { Thread, Message } from "@shared/schema";
 
 export default function ChatbotPage() {
   const [question, setQuestion] = useState("");
-  const [mode, setMode] = useState<"balanced" | "deep" | "concise">("balanced");
-  const [useCache, setUseCache] = useState(true);
-  const [response, setResponse] = useState<string>("");
-  const [metadata, setMetadata] = useState<string>("");
-  const [citations, setCitations] = useState<string>("");
-  const [error, setError] = useState<string>("");
-  const [copied, setCopied] = useState(false);
-  const [selectedConversationId, setSelectedConversationId] = useState<number>();
-  const [showHistory, setShowHistory] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [currentThreadId, setCurrentThreadId] = useState<number | undefined>();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // Fetch messages when thread is selected
+  const { data: fetchedMessages, refetch: refetchMessages } = useQuery<Message[]>({
+    queryKey: ["/api/threads", currentThreadId, "messages"],
+    enabled: !!currentThreadId,
+  });
+
+  // Update messages when thread changes
   useEffect(() => {
-    const savedApiKey = localStorage.getItem("gradio_api_key");
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-      setApiKeyInput(savedApiKey);
+    if (fetchedMessages) {
+      setMessages(fetchedMessages);
+    } else {
+      setMessages([]);
     }
-  }, []);
+  }, [fetchedMessages]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [messages]);
 
   const queryMutation = useMutation({
-    mutationFn: async (payload: Query) => {
-      const response = await apiRequest("POST", "/api/query", payload);
-      const result = await response.json() as QueryResponse;
+    mutationFn: async (payload: { question: string; threadId?: number }) => {
+      const response = await apiRequest("POST", "/api/query", {
+        question: payload.question,
+        mode: "balanced",
+        refresh: false,
+        threadId: payload.threadId,
+      });
+      const result = await response.json();
       return result;
     },
     onSuccess: (data) => {
       if (data.error) {
-        setError(data.error);
-        setResponse("");
-        setMetadata("");
-        setCitations("");
         toast({
           title: "Error",
           description: data.error,
           variant: "destructive",
         });
       } else {
-        setResponse(data.data);
-        setMetadata(data.metadata || "");
-        setCitations(data.citations || "");
-        setError("");
-        queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-        toast({
-          title: "Success",
-          description: "Query executed successfully",
-        });
+        // Set the thread ID if this was a new conversation
+        if (!currentThreadId && data.threadId) {
+          setCurrentThreadId(data.threadId);
+        }
+        
+        // Add user message
+        const userMessage: Message = {
+          id: Date.now(),
+          threadId: data.threadId,
+          role: "user",
+          content: question,
+          responseId: null,
+          sources: null,
+          metadata: null,
+          createdAt: new Date(),
+        };
+        
+        // Add assistant message
+        const assistantMessage: Message = {
+          id: Date.now() + 1,
+          threadId: data.threadId,
+          role: "assistant",
+          content: data.data,
+          responseId: data.responseId || null,
+          sources: data.citations || null,
+          metadata: data.metadata || null,
+          createdAt: new Date(),
+        };
+        
+        setMessages((prev) => [...prev, userMessage, assistantMessage]);
+        setQuestion("");
+        
+        // Invalidate queries to refresh thread list
+        queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
       }
     },
     onError: (error: Error) => {
-      const errorMessage = error.message || "Failed to execute query";
-      setError(errorMessage);
-      setResponse("");
-      setMetadata("");
-      setCitations("");
       toast({
         title: "Error",
-        description: errorMessage,
+        description: error.message || "Failed to send message",
         variant: "destructive",
       });
     },
   });
-
-  const handleSelectConversation = (conversation: Conversation) => {
-    setQuestion(conversation.question);
-    setMode(conversation.mode as "balanced" | "deep" | "concise");
-    setUseCache(conversation.useCache);
-    setResponse(conversation.response);
-    setMetadata(""); // Metadata not stored in history yet
-    setCitations(""); // Citations not stored in history yet
-    setError("");
-    setSelectedConversationId(conversation.id);
-  };
 
   const handleSubmit = () => {
     if (!question.trim()) {
@@ -158,25 +123,8 @@ export default function ChatbotPage() {
 
     queryMutation.mutate({
       question,
-      mode,
-      refresh: !useCache,
+      threadId: currentThreadId,
     });
-  };
-
-  const handleSuggestedPrompt = (promptText: string) => {
-    setQuestion(promptText);
-  };
-
-  const handleCopy = async () => {
-    if (response) {
-      await navigator.clipboard.writeText(response);
-      setCopied(true);
-      toast({
-        title: "Copied",
-        description: "Response copied to clipboard",
-      });
-      setTimeout(() => setCopied(false), 2000);
-    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -186,541 +134,171 @@ export default function ChatbotPage() {
     }
   };
 
-  const handleExportMarkdown = () => {
-    if (!question || !response) {
-      toast({
-        title: "No Content",
-        description: "Please generate a response first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const timestamp = new Date().toLocaleString();
-    const content = `# WealthForce Knowledge Agent Export
-## Query Details
-- **Timestamp**: ${timestamp}
-- **Mode**: ${mode}
-- **Cache**: ${useCache ? 'Enabled' : 'Disabled'}
-
-## Question
-${question}
-
-## Response
-${response}
-`;
-
-    const blob = new Blob([content], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `wealthforce-query-${Date.now()}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "Export Successful",
-      description: "Conversation exported as Markdown",
-    });
+  const handleSelectThread = async (thread: Thread) => {
+    setCurrentThreadId(thread.id);
   };
 
-  const handleExportPDF = () => {
-    if (!question || !response) {
-      toast({
-        title: "No Content",
-        description: "Please generate a response first",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleNewChat = () => {
+    setCurrentThreadId(undefined);
+    setMessages([]);
+    setQuestion("");
+  };
 
-    const doc = new jsPDF();
-    const timestamp = new Date().toLocaleString();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
-    const maxWidth = pageWidth - 2 * margin;
-    let yPosition = 20;
-
-    // Helper function to render text with markdown formatting
-    const renderMarkdownLine = (line: string, x: number, y: number) => {
-      let xPos = x;
-      // Split by bold markers while preserving them
-      const parts = line.split(/(\*\*.*?\*\*)/g);
+  const handleDeleteThread = async (id: number) => {
+    try {
+      await apiRequest("DELETE", `/api/threads/${id}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
       
-      parts.forEach(part => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          // Bold text
-          doc.setFont('helvetica', 'bold');
-          const text = part.slice(2, -2);
-          doc.text(text, xPos, y);
-          xPos += doc.getTextWidth(text);
-        } else if (part) {
-          // Normal text
-          doc.setFont('helvetica', 'normal');
-          doc.text(part, xPos, y);
-          xPos += doc.getTextWidth(part);
-        }
-      });
-    };
-
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text("WealthForce Knowledge Agent Export", margin, yPosition);
-    yPosition += 15;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Timestamp: ${timestamp}`, margin, yPosition);
-    yPosition += 7;
-    doc.text(`Mode: ${mode}`, margin, yPosition);
-    yPosition += 7;
-    doc.text(`Cache: ${useCache ? 'Enabled' : 'Disabled'}`, margin, yPosition);
-    yPosition += 12;
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text("Question", margin, yPosition);
-    yPosition += 8;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    const questionLines = doc.splitTextToSize(question, maxWidth);
-    questionLines.forEach((line: string) => {
-      if (yPosition > 270) {
-        doc.addPage();
-        yPosition = 20;
-      }
-      doc.text(line, margin, yPosition);
-      yPosition += 6;
-    });
-    yPosition += 8;
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text("Response", margin, yPosition);
-    yPosition += 8;
-
-    doc.setFontSize(10);
-    // Process each line of response for markdown
-    const responseLines = response.split('\n');
-    responseLines.forEach((line: string) => {
-      if (yPosition > 270) {
-        doc.addPage();
-        yPosition = 20;
+      if (currentThreadId === id) {
+        handleNewChat();
       }
       
-      // Handle bullet points
-      if (line.trim().startsWith('•')) {
-        const wrappedLines = doc.splitTextToSize(line, maxWidth);
-        wrappedLines.forEach((wrappedLine: string, index: number) => {
-          if (yPosition > 270) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          if (index === 0) {
-            renderMarkdownLine(wrappedLine, margin, yPosition);
-          } else {
-            renderMarkdownLine(wrappedLine, margin + 5, yPosition);
-          }
-          yPosition += 6;
-        });
-      } else {
-        const wrappedLines = doc.splitTextToSize(line, maxWidth);
-        wrappedLines.forEach((wrappedLine: string) => {
-          if (yPosition > 270) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          renderMarkdownLine(wrappedLine, margin, yPosition);
-          yPosition += 6;
-        });
-      }
-    });
-
-    doc.save(`wealthforce-query-${Date.now()}.pdf`);
-
-    toast({
-      title: "Export Successful",
-      description: "Conversation exported as PDF",
-    });
-  };
-
-  const handleSaveApiKey = () => {
-    if (apiKeyInput.trim()) {
-      localStorage.setItem("gradio_api_key", apiKeyInput.trim());
-      setApiKey(apiKeyInput.trim());
-      setShowSettings(false);
       toast({
-        title: "API Key Saved",
-        description: "Your API key has been saved securely in local storage",
+        title: "Thread Deleted",
+        description: "Conversation has been deleted",
       });
-    } else {
-      localStorage.removeItem("gradio_api_key");
-      setApiKey("");
-      setShowSettings(false);
+    } catch (error) {
       toast({
-        title: "API Key Removed",
-        description: "API key has been removed",
+        title: "Error",
+        description: "Failed to delete thread",
+        variant: "destructive",
       });
     }
   };
 
-  const charCount = question.length;
   const isLoading = queryMutation.isPending;
-  const hasResponse = response || error;
+  const hasMessages = messages.length > 0;
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {showHistory && (
-        <HistorySidebar
-          onSelectConversation={handleSelectConversation}
-          selectedId={selectedConversationId}
-        />
-      )}
+    <div className="flex h-screen bg-background">
+      <ThreadSidebar
+        onSelectThread={handleSelectThread}
+        onNewChat={handleNewChat}
+        onDeleteThread={handleDeleteThread}
+        selectedThreadId={currentThreadId}
+      />
       
       <div className="flex-1 flex flex-col">
-        {/* Professional Enterprise Header */}
-        <header className="border-b border-border bg-card/30 backdrop-blur-sm">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                data-testid="button-toggle-history"
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowHistory(!showHistory)}
-                className="hover-elevate active-elevate-2"
-              >
-                <History className="w-5 h-5" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground flex items-center gap-2" data-testid="text-title">
-                  <Sparkles className="w-6 h-6 text-primary" />
-                  WealthForce Knowledge Agent
-                </h1>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Query WealthForce Product Knowledge
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {apiKey && (
-                <div className="text-xs text-muted-foreground px-3 py-1.5 rounded-md bg-muted/50 border border-border" data-testid="text-auth-status">
-                  <Key className="w-3 h-3 inline mr-1.5" />
-                  Authenticated
-                </div>
-              )}
-              
-              <Dialog open={showSettings} onOpenChange={setShowSettings}>
-                <DialogTrigger asChild>
-                  <Button
-                    data-testid="button-settings"
-                    variant="ghost"
-                    size="icon"
-                    className="hover-elevate active-elevate-2"
-                  >
-                    <Settings className="w-5 h-5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>API Settings</DialogTitle>
-                    <DialogDescription>
-                      Configure your Gradio API authentication. This is optional and will be used for future authenticated endpoints.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="api-key" className="text-sm font-medium">
-                        API Key
-                      </Label>
-                      <div className="relative">
-                        <Key className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="api-key"
-                          data-testid="input-api-key"
-                          type="password"
-                          placeholder="Enter your Gradio API key"
-                          value={apiKeyInput}
-                          onChange={(e) => setApiKeyInput(e.target.value)}
-                          className="pl-9"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Your API key is stored securely in your browser's local storage
-                      </p>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        data-testid="button-cancel-settings"
-                        variant="outline"
-                        onClick={() => {
-                          setApiKeyInput(apiKey);
-                          setShowSettings(false);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        data-testid="button-save-api-key"
-                        onClick={handleSaveApiKey}
-                      >
-                        Save
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    data-testid="button-export"
-                    variant="outline"
-                    className="gap-2"
-                    disabled={!response}
-                  >
-                    <Download className="w-4 h-4" />
-                    Export
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    data-testid="menu-export-markdown"
-                    onClick={handleExportMarkdown}
-                    className="gap-2"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Export as Markdown
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    data-testid="menu-export-pdf"
-                    onClick={handleExportPDF}
-                    className="gap-2"
-                  >
-                    <FileDown className="w-4 h-4" />
-                    Export as PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+        {/* Header */}
+        <header className="border-b border-border bg-card/30 backdrop-blur-sm px-6 py-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold text-foreground" data-testid="text-title">
+                WealthForce Knowledge Agent
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Conversational Wealth Management Knowledge
+              </p>
             </div>
           </div>
         </header>
 
-        {/* Main Content Area - Claude-inspired clean layout */}
-        <div className="flex-1 overflow-auto">
+        {/* Messages Area */}
+        <ScrollArea ref={scrollAreaRef} className="flex-1">
           <div className="max-w-4xl mx-auto px-6 py-8">
-            
-            {/* Suggested Prompts - ChatGPT-inspired onboarding (shown when empty) */}
-            {!hasResponse && !isLoading && !question && (
-              <div className="mb-8">
-                <h2 className="text-lg font-semibold text-foreground mb-4">Get Started</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {SUGGESTED_PROMPTS.map((prompt, index) => {
-                    const Icon = prompt.icon;
-                    return (
-                      <Card
-                        key={index}
-                        className="cursor-pointer transition-all hover-elevate active-elevate-2 border-border"
-                        onClick={() => handleSuggestedPrompt(prompt.text)}
-                        data-testid={`card-suggested-prompt-${index}`}
-                      >
-                        <CardContent className="p-4 flex items-start gap-3">
-                          <div className="p-2 rounded-lg bg-primary/10">
-                            <Icon className="w-5 h-5 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground line-clamp-2">{prompt.text}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{prompt.description}</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+            {!hasMessages && !isLoading && (
+              <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                <Sparkles className="w-16 h-16 text-primary/50" />
+                <h2 className="text-2xl font-semibold text-foreground">
+                  Start a New Conversation
+                </h2>
+                <p className="text-muted-foreground max-w-md">
+                  Ask me anything about wealth management, financial products, or processes.
+                  I'll remember our conversation and build context as we chat.
+                </p>
               </div>
             )}
 
-            {/* Query Input Section */}
-            <Card className="mb-6 border-border shadow-sm">
-              <CardContent className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="question" className="text-sm font-semibold uppercase tracking-wider text-foreground">
-                    Your Question
-                  </Label>
-                  <div className="relative">
-                    <Textarea
-                      id="question"
-                      data-testid="input-question"
-                      placeholder="Ask about wealth management processes..."
-                      value={question}
-                      onChange={(e) => setQuestion(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      className="min-h-24 resize-none rounded-lg focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                      disabled={isLoading}
-                    />
-                    <span className="absolute bottom-2 right-2 text-xs text-muted-foreground" data-testid="text-char-count">
-                      {charCount}
-                    </span>
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`mb-6 flex gap-4 ${
+                  message.role === "user" ? "justify-end" : "justify-start"
+                }`}
+                data-testid={`message-${message.role}-${message.id}`}
+              >
+                {message.role === "assistant" && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-primary" />
                   </div>
-                </div>
-
-                <div className="flex items-end gap-3">
-                  <div className="flex-1 grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="mode" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Mode
-                      </Label>
-                      <Select value={mode} onValueChange={(value) => setMode(value as typeof mode)} disabled={isLoading}>
-                        <SelectTrigger id="mode" data-testid="select-mode" className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="concise">Concise</SelectItem>
-                          <SelectItem value="balanced">Balanced</SelectItem>
-                          <SelectItem value="deep">Deep</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Cache
-                      </Label>
-                      <div className="flex items-center justify-between h-9 px-3 rounded-lg border border-border bg-card">
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            id="cache"
-                            data-testid="switch-cache"
-                            checked={useCache}
-                            onCheckedChange={setUseCache}
-                            disabled={isLoading}
-                            className="data-[state=checked]:bg-chart-2"
-                          />
-                          <Label htmlFor="cache" className="text-sm font-medium cursor-pointer">
-                            {useCache ? 'Enabled' : 'Disabled'}
-                          </Label>
-                        </div>
-                        {useCache && (
-                          <Check className="w-4 h-4 text-chart-2" data-testid="icon-cache-enabled" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    data-testid="button-submit"
-                    onClick={handleSubmit}
-                    disabled={!question.trim() || isLoading}
-                    size="lg"
-                    className="min-w-32"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        Send
-                        <Send className="w-4 h-4" />
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Response Section - Card-based display (ChatGPT/Intellect style) */}
-            {(isLoading || hasResponse) && (
-              <div className="space-y-4">
-                {/* Main Response Card */}
-                <Card
-                  className={`border shadow-sm ${
-                    error
-                      ? "border-destructive/50 bg-destructive/5"
-                      : response
-                      ? "border-primary/20 bg-primary/5"
-                      : "border-border"
+                )}
+                
+                <div
+                  className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                    message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
                   }`}
-                  data-testid="container-response"
                 >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Response</h3>
-                      {response && (
-                        <Button
-                          data-testid="button-copy"
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleCopy}
-                          className="gap-2 hover-elevate active-elevate-2"
-                        >
-                          {copied ? (
-                            <>
-                              <Check className="w-3 h-3" />
-                              Copied
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3 h-3" />
-                              Copy
-                            </>
-                          )}
-                        </Button>
-                      )}
+                  {message.role === "user" ? (
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  ) : (
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
                     </div>
+                  )}
+                </div>
 
-                    {isLoading ? (
-                      <div className="space-y-3 animate-pulse">
-                        <div className="h-4 bg-muted rounded w-3/4"></div>
-                        <div className="h-4 bg-muted rounded w-full"></div>
-                        <div className="h-4 bg-muted rounded w-5/6"></div>
-                        <div className="h-4 bg-muted rounded w-2/3"></div>
-                      </div>
-                    ) : error ? (
-                      <div className="flex flex-col items-center justify-center py-8 space-y-3" data-testid="text-error">
-                        <div className="p-3 rounded-full bg-destructive/10">
-                          <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <p className="text-destructive text-center text-sm font-medium">{error}</p>
-                      </div>
-                    ) : response ? (
-                      <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-semibold prose-code:font-mono prose-code:text-sm prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-p:text-foreground prose-li:text-foreground">
-                        <ReactMarkdown data-testid="text-response">{response}</ReactMarkdown>
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-
-                {/* Metadata Card */}
-                {metadata && (
-                  <Card className="border-border shadow-sm">
-                    <CardContent className="p-4">
-                      <div className="text-xs text-muted-foreground">
-                        <ReactMarkdown data-testid="text-metadata">{metadata}</ReactMarkdown>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Sources Card */}
-                {citations && (citations.includes('→') || citations.includes('[1]')) && citations.length > 15 && (
-                  <Card className="border-border shadow-sm">
-                    <CardContent className="p-6">
-                      <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground mb-3">Sources</h3>
-                      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:text-muted-foreground prose-strong:text-foreground">
-                        <ReactMarkdown data-testid="text-citations">{citations}</ReactMarkdown>
-                      </div>
-                    </CardContent>
-                  </Card>
+                {message.role === "user" && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                    <User className="w-4 h-4 text-foreground" />
+                  </div>
                 )}
               </div>
+            ))}
+
+            {isLoading && (
+              <div className="mb-6 flex gap-4 justify-start" data-testid="loading-indicator">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                </div>
+                <div className="max-w-[80%] rounded-lg px-4 py-3 bg-muted">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Thinking...</span>
+                  </div>
+                </div>
+              </div>
             )}
+          </div>
+        </ScrollArea>
+
+        {/* Input Area - Fixed at bottom */}
+        <div className="border-t border-border bg-card/30 backdrop-blur-sm p-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <Textarea
+                  data-testid="input-question"
+                  placeholder="Ask a follow-up question..."
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="min-h-[60px] max-h-[200px] resize-none"
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Press Enter to send, Shift + Enter for new line
+                </p>
+              </div>
+              <Button
+                data-testid="button-submit"
+                onClick={handleSubmit}
+                disabled={!question.trim() || isLoading}
+                size="lg"
+                className="h-[60px] px-6"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    Send
+                    <Send className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
