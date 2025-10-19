@@ -5,6 +5,20 @@ import { storage } from "./storage";
 
 const EKG_API_URL = "https://ekg-service-47249889063.europe-west6.run.app";
 
+// Helper function to clean answer text by removing formatting noise
+function cleanAnswer(markdown: string): string {
+  return markdown
+    .replace(/^#.*$/gm, '')                    // Remove headers (# **KG + VectorStore Answer**)
+    .replace(/<[^>]*>/g, '')                   // Remove HTML tags (<sup>, <a>, etc.)
+    .replace(/\*\*([^*]+)\*\*/g, '$1')         // Remove bold (**text** -> text)
+    .replace(/\[[\d,\s]+\]/g, '')              // Remove citations [1], [2], [3]
+    .replace(/_Generated:.*$/m, '')            // Remove timestamp line
+    .replace(/---[\s\S]*$/, '')                // Remove everything after --- (Citations section)
+    .replace(/\[KG:.*?\]/g, '')                // Remove [KG: dataentity:...] tags
+    .replace(/\n{3,}/g, '\n\n')                // Collapse multiple newlines
+    .trim();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Main query endpoint - handles both new threads and follow-up questions
   app.post("/api/query", async (req, res) => {
