@@ -10,6 +10,8 @@ The WealthForce Knowledge Agent is an enterprise-grade conversational AI chatbot
 - **Download & Export Features**: Added dropdown menu with Markdown (.md) and PDF (.pdf) export options for individual messages. PDF generation includes automatic pagination for long content.
 - **Regenerate Functionality**: Implemented regenerate button for assistant messages to resubmit questions while maintaining conversation context. Uses mutation variables to prevent stale state issues.
 - **Layout Improvements**: Moved "Generated:" timestamp to bottom of responses, removed zero-gap spacing between citation lines, and unified question/answer text styling.
+- **Enhanced Conversational Context**: Implemented sliding window context management by sending the last 5 Q&A pairs along with `response_id` and `conversation_id` to the EKG API. This provides richer context for better response quality while keeping payload size manageable.
+- **30-Day Thread Retention**: Limited thread history access to the last 30 days to maintain optimal performance and relevant conversation history.
 
 ## User Preferences
 I prefer simple language and detailed explanations. I want iterative development with frequent, small updates rather than large, infrequent ones. Ask before making major changes to the architecture or core functionalities. Do not make changes to the `shared/` folder without explicit instruction.
@@ -26,9 +28,11 @@ The UI is inspired by ChatGPT, featuring a two-column layout with a fixed sideba
 
 ### Technical Implementations
 - **Conversational Threading**: A hybrid approach uses API-driven context chaining (`conversation_id` or `response_id`) for real-time context and PostgreSQL for persistent storage of threads and messages. `conversation_id` is prioritized for long-running context.
+- **Sliding Window Context**: Implements a 5-message sliding window that retrieves the last 5 Q&A pairs from the database and sends them as `chat_history` to the EKG API along with context IDs. This provides full conversation history for better context understanding while preventing excessive payload sizes.
+- **Context Payload Structure**: API requests include: (1) `conversation_id` for long-running threads, (2) `response_id` for chaining responses, and (3) `chat_history` array with last 5 Q&A pairs formatted as `{question, answer}` objects.
 - **Frontend State Management**: Utilizes React with TanStack Query for data fetching, caching, optimistic UI updates, and automatic cache invalidation.
 - **Message Architecture**: Stores individual user and assistant messages, enabling flexible display and retrieval.
-- **Thread Management**: Automatically creates new threads, generates titles, allows switching, searching, and deleting threads, and updates last activity timestamps.
+- **Thread Management**: Automatically creates new threads, generates titles, allows switching, searching, and deleting threads, and updates last activity timestamps. Threads are filtered to show only the last 30 days for optimal performance.
 - **Error Handling**: Comprehensive error handling is implemented across the application, with inline error messages and toast notifications.
 - **Loading States**: Features beautiful loading states and animations for a smooth user experience.
 
