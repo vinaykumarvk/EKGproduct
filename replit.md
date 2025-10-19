@@ -72,7 +72,11 @@ The application uses a hybrid approach to maintain conversation context:
 
 4. **Message Display**
    - User messages: Plain text in blue bubbles
-   - Assistant messages: Markdown-rendered with code blocks
+   - Assistant messages: Markdown-rendered with HTML support
+     - **Proper HTML rendering**: Superscript citations, links, and formatting
+     - **HTML entity decoding**: Converts encoded entities (&lt; → <, &gt; → >)
+     - **GitHub-flavored markdown**: Tables, strikethrough, task lists
+     - **Code blocks**: Syntax highlighting and proper backgrounds
    - **Sources display**: Shows up to 3 source documents with filenames and relevance scores
    - Sources appear below assistant messages in a compact card format
    - Full source count shown (e.g., "Sources (8)")
@@ -240,6 +244,8 @@ Following ChatGPT/Claude-inspired design:
 
 ### Dependencies
 - **react-markdown** - Markdown rendering in assistant messages
+- **rehype-raw** - Enables HTML rendering within markdown (for citations, links)
+- **remark-gfm** - GitHub-flavored markdown support (tables, strikethrough)
 - **@tanstack/react-query** - Data fetching/mutations with cache management
 - **wouter** - Routing
 - **zod** - Schema validation

@@ -19,8 +19,17 @@ import {
   User
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import remarkGfm from "remark-gfm";
 import { ThreadSidebar } from "@/components/thread-sidebar";
 import type { Thread, Message } from "@shared/schema";
+
+// Helper function to decode HTML entities
+function decodeHTMLEntities(text: string): string {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+}
 
 export default function ChatbotPage() {
   const [question, setQuestion] = useState("");
@@ -266,8 +275,13 @@ export default function ChatbotPage() {
                     {message.role === "user" ? (
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     ) : (
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
-                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      <div className="prose prose-sm max-w-none dark:prose-invert prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+                        <ReactMarkdown 
+                          rehypePlugins={[rehypeRaw]}
+                          remarkPlugins={[remarkGfm]}
+                        >
+                          {decodeHTMLEntities(message.content)}
+                        </ReactMarkdown>
                       </div>
                     )}
                   </div>

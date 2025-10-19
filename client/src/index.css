@@ -324,4 +324,37 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+  
+  /* Custom markdown formatting for AI responses */
+  .prose sup {
+    @apply text-primary font-medium;
+  }
+  
+  .prose sup a {
+    @apply text-primary hover:text-primary/80 transition-colors;
+    text-decoration: none;
+  }
+  
+  /* Better spacing for bullet points */
+  .prose ul {
+    @apply space-y-1;
+  }
+  
+  .prose li {
+    @apply leading-relaxed;
+  }
+  
+  /* Style paragraphs in prose */
+  .prose p {
+    @apply mb-3;
+  }
+  
+  /* Ensure code blocks have proper background */
+  .prose code {
+    @apply bg-muted/50 px-1.5 py-0.5 rounded text-sm;
+  }
+  
+  .prose pre code {
+    @apply bg-transparent px-0 py-0;
+  }
 }
