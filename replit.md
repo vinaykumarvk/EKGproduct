@@ -10,7 +10,9 @@ The WealthForce Knowledge Agent is an enterprise-grade conversational AI chatbot
 - **Download & Export Features**: Added dropdown menu with Markdown (.md) and PDF (.pdf) export options for individual messages. PDF generation includes automatic pagination for long content.
 - **Regenerate Functionality**: Implemented regenerate button for assistant messages to resubmit questions while maintaining conversation context. Uses mutation variables to prevent stale state issues.
 - **Layout Improvements**: Moved "Generated:" timestamp to bottom of responses, removed zero-gap spacing between citation lines, and unified question/answer text styling.
-- **Enhanced Conversational Context**: Implemented sliding window context management by sending the last 5 Q&A pairs along with `response_id` and `conversation_id` to the EKG API. This provides richer context for better response quality while keeping payload size manageable.
+- **Enhanced Conversational Context**: Implemented sliding window context management with **3 Q&A pairs** sent to the EKG API. Reduced from 5 to 3 for more focused context.
+- **Clean Context Formatting**: Added `cleanAnswer()` function to strip markdown, HTML tags, citations, bold formatting, and technical noise from chat history before sending to API. This ensures cleaner context for better LLM understanding.
+- **Meta-Instruction Prompting**: Follow-up questions automatically include meta-instructions that ask the LLM to evaluate and clarify ambiguous pronoun references ("this", "it", "that") before answering. This hybrid approach combines clean text context with LLM self-evaluation for improved contextual understanding.
 - **30-Day Thread Retention**: Limited thread history access to the last 30 days to maintain optimal performance and relevant conversation history.
 
 ## User Preferences
@@ -28,8 +30,10 @@ The UI is inspired by ChatGPT, featuring a two-column layout with a fixed sideba
 
 ### Technical Implementations
 - **Conversational Threading**: A hybrid approach uses API-driven context chaining (`conversation_id` or `response_id`) for real-time context and PostgreSQL for persistent storage of threads and messages. `conversation_id` is prioritized for long-running context.
-- **Sliding Window Context**: Implements a 5-message sliding window that retrieves the last 5 Q&A pairs from the database and sends them as `chat_history` to the EKG API along with context IDs. This provides full conversation history for better context understanding while preventing excessive payload sizes.
-- **Context Payload Structure**: API requests include: (1) `conversation_id` for long-running threads, (2) `response_id` for chaining responses, and (3) `chat_history` array with last 5 Q&A pairs formatted as `{question, answer}` objects.
+- **Sliding Window Context**: Implements a **3-message sliding window** that retrieves the last 3 Q&A pairs from the database and sends them as `chat_history` to the EKG API along with context IDs. This provides focused conversation history while preventing excessive payload sizes.
+- **Context Cleaning Pipeline**: Uses `cleanAnswer()` helper function to strip markdown formatting, HTML tags, citations, bold markers, timestamps, and Knowledge Graph tags from answers before sending as chat history. This ensures clean, readable context for the LLM.
+- **Meta-Instruction Enhancement**: For follow-up questions, automatically prepends meta-instructions asking the LLM to detect and clarify ambiguous references (pronouns like "this", "it", "that") using conversation history before providing the answer. This enables LLM-driven context enrichment.
+- **Context Payload Structure**: API requests include: (1) `conversation_id` for long-running threads, (2) `response_id` for chaining responses, (3) `chat_history` array with last 3 cleaned Q&A pairs, and (4) meta-instruction-enhanced question for follow-ups.
 - **Frontend State Management**: Utilizes React with TanStack Query for data fetching, caching, optimistic UI updates, and automatic cache invalidation.
 - **Message Architecture**: Stores individual user and assistant messages, enabling flexible display and retrieval.
 - **Thread Management**: Automatically creates new threads, generates titles, allows switching, searching, and deleting threads, and updates last activity timestamps. Threads are filtered to show only the last 30 days for optimal performance.

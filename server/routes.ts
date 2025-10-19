@@ -8,14 +8,18 @@ const EKG_API_URL = "https://ekg-service-47249889063.europe-west6.run.app";
 // Helper function to clean answer text by removing formatting noise
 function cleanAnswer(markdown: string): string {
   return markdown
-    .replace(/^#.*$/gm, '')                    // Remove headers (# **KG + VectorStore Answer**)
-    .replace(/<[^>]*>/g, '')                   // Remove HTML tags (<sup>, <a>, etc.)
-    .replace(/\*\*([^*]+)\*\*/g, '$1')         // Remove bold (**text** -> text)
-    .replace(/\[[\d,\s]+\]/g, '')              // Remove citations [1], [2], [3]
-    .replace(/_Generated:.*$/m, '')            // Remove timestamp line
-    .replace(/---[\s\S]*$/, '')                // Remove everything after --- (Citations section)
-    .replace(/\[KG:.*?\]/g, '')                // Remove [KG: dataentity:...] tags
-    .replace(/\n{3,}/g, '\n\n')                // Collapse multiple newlines
+    .replace(/^#.*KG \+ VectorStore Answer.*$/gm, '')  // Remove KG answer headers
+    .replace(/^_Generated:.*$/gm, '')                   // Remove timestamp lines
+    .replace(/^##\s*\*\*Answer\*\*\s*$/gm, '')         // Remove "## **Answer**" subheader
+    .replace(/<sup>.*?<\/sup>/g, '')                    // Remove citation superscripts (includes links)
+    .replace(/<a\s+id="cite-\d+">\s*<\/a>/g, '')       // Remove citation anchor definitions
+    .replace(/<a[^>]*>(.*?)<\/a>/g, '$1')              // Extract text from remaining anchor tags
+    .replace(/<[^>]*>/g, '')                            // Remove remaining HTML tags
+    .replace(/\*\*([^*]+)\*\*/g, '$1')                  // Remove bold (**text** -> text)
+    .replace(/\[[\d,\s]+\]/g, '')                       // Remove inline citations [1], [2]
+    .replace(/\[KG:.*?\]/gi, '')                        // Remove Knowledge Graph tags
+    .replace(/---\s*##\s*\*\*Sources by File\*\*[\s\S]*$/, '') // Remove citations section
+    .replace(/\n{3,}/g, '\n\n')                         // Collapse multiple newlines
     .trim();
 }
 
@@ -44,6 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Get last 3 Q&A pairs for focused context window
         const recentMessages = await storage.getRecentMessagePairs(threadId, 3);
+        console.log(`Retrieved ${recentMessages.length} messages for context (expecting ${3 * 2} for ${3} pairs)`);
         
         // Format as Q&A pairs with cleaned answers
         for (let i = 0; i < recentMessages.length; i += 2) {
@@ -51,12 +56,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const assistantMsg = recentMessages[i + 1];
           
           if (userMsg && assistantMsg && userMsg.role === "user" && assistantMsg.role === "assistant") {
+            const cleanedAnswer = cleanAnswer(assistantMsg.content);
             chatHistory.push({
               question: userMsg.content,
-              answer: cleanAnswer(assistantMsg.content)  // Clean formatting from answer
+              answer: cleanedAnswer
             });
+            console.log(`Added Q&A pair ${Math.floor(i/2) + 1}: Q="${userMsg.content.substring(0, 50)}..." A="${cleanedAnswer.substring(0, 50)}..."`);
+          } else {
+            console.warn(`Skipping invalid message pair at index ${i}: user=${userMsg?.role}, assistant=${assistantMsg?.role}`);
           }
         }
+        console.log(`Final chatHistory has ${chatHistory.length} pairs`);
       } else {
         // Create a new thread with title from question (truncated)
         const title = validatedData.question.length > 60 
