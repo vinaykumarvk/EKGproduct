@@ -6,6 +6,7 @@ import { z } from "zod";
 export const threads = pgTable("threads", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(), // Generated from first question
+  conversationId: text("conversation_id"), // EKG API conversation_id for long-running context
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

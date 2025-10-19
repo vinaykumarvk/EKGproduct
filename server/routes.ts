@@ -12,9 +12,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = querySchema.parse(req.body);
       let threadId = validatedData.threadId;
       let previousResponseId: string | undefined;
+      let existingConversationId: string | undefined;
       
-      // If threadId provided, get the last assistant message for response_id
+      // If threadId provided, get the last assistant message for response_id and thread conversationId
       if (threadId) {
+        const thread = await storage.getThread(threadId);
+        if (thread && thread.conversationId) {
+          existingConversationId = thread.conversationId;
+        }
+        
         const lastMessage = await storage.getLastAssistantMessage(threadId);
         if (lastMessage && lastMessage.responseId) {
           previousResponseId = lastMessage.responseId;
@@ -37,8 +43,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
       
-      // Add response_id if this is a follow-up question
-      if (previousResponseId) {
+      // Add conversation_id for long-running context (prioritize this over response_id)
+      if (existingConversationId) {
+        apiPayload.conversation_id = existingConversationId;
+      } else if (previousResponseId) {
+        // Add response_id if this is a follow-up question without conversation_id
         apiPayload.response_id = previousResponseId;
       }
       
@@ -97,6 +106,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sources: sources || null,
           metadata: metadata || null,
         });
+        
+        // Capture and store conversation_id from API response for long-running context
+        const apiConversationId = result.meta?.conversation_id || result.conversation_id;
+        if (apiConversationId && !existingConversationId) {
+          await storage.updateThreadConversationId(threadId!, apiConversationId);
+        }
         
         // Update thread timestamp
         await storage.updateThreadTimestamp(threadId!);

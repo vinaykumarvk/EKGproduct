@@ -25,6 +25,7 @@ export interface IStorage {
   getThread(id: number): Promise<Thread | undefined>;
   createThread(thread: InsertThread): Promise<Thread>;
   updateThreadTimestamp(id: number): Promise<void>;
+  updateThreadConversationId(id: number, conversationId: string): Promise<void>;
   deleteThread(id: number): Promise<void>;
   
   // Message methods
@@ -80,6 +81,13 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(threads)
       .set({ updatedAt: new Date() })
+      .where(eq(threads.id, id));
+  }
+
+  async updateThreadConversationId(id: number, conversationId: string): Promise<void> {
+    await db
+      .update(threads)
+      .set({ conversationId, updatedAt: new Date() })
       .where(eq(threads.id, id));
   }
 
