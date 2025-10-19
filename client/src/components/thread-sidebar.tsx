@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { X, MessageSquarePlus, Search } from "lucide-react";
+import { Trash2, MessageSquarePlus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import type { Thread } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
@@ -16,6 +16,7 @@ interface ThreadSidebarProps {
 
 export function ThreadSidebar({ onSelectThread, onNewChat, onDeleteThread, selectedThreadId }: ThreadSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const { data: threads = [], isLoading } = useQuery<Thread[]>({
     queryKey: ["/api/threads"],
@@ -25,18 +26,53 @@ export function ThreadSidebar({ onSelectThread, onNewChat, onDeleteThread, selec
     thread.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (isCollapsed) {
+    return (
+      <div className="w-12 border-r border-border bg-card flex flex-col h-full items-center py-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsCollapsed(false)}
+          data-testid="button-expand-sidebar"
+          className="mb-4"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onNewChat}
+          data-testid="button-new-chat-collapsed"
+        >
+          <MessageSquarePlus className="w-5 h-5" />
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-64 border-r border-border bg-card flex flex-col h-full">
       <div className="p-4 border-b border-border space-y-3">
-        <Button
-          data-testid="button-new-chat"
-          onClick={onNewChat}
-          className="w-full gap-2"
-          size="lg"
-        >
-          <MessageSquarePlus className="w-5 h-5" />
-          New Chat
-        </Button>
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            data-testid="button-new-chat"
+            onClick={onNewChat}
+            className="flex-1 gap-2"
+            size="lg"
+          >
+            <MessageSquarePlus className="w-5 h-5" />
+            New Chat
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(true)}
+            data-testid="button-collapse-sidebar"
+            title="Collapse sidebar"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+        </div>
 
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
@@ -51,7 +87,7 @@ export function ThreadSidebar({ onSelectThread, onNewChat, onDeleteThread, selec
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
+        <div className="p-2 space-y-1.5">
           {isLoading ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               Loading threads...
@@ -64,7 +100,7 @@ export function ThreadSidebar({ onSelectThread, onNewChat, onDeleteThread, selec
             filteredThreads.map((thread) => (
               <div
                 key={thread.id}
-                className={`group relative flex items-center justify-between gap-2 rounded-lg p-3 cursor-pointer transition-colors ${
+                className={`group relative flex items-start gap-2 rounded-lg p-2.5 cursor-pointer transition-colors ${
                   selectedThreadId === thread.id
                     ? "bg-primary/10 border border-primary/20"
                     : "hover:bg-muted/50"
@@ -72,25 +108,26 @@ export function ThreadSidebar({ onSelectThread, onNewChat, onDeleteThread, selec
                 onClick={() => onSelectThread(thread)}
                 data-testid={`thread-item-${thread.id}`}
               >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <p className="text-sm font-medium text-foreground break-words line-clamp-2">
                     {thread.title}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {formatDistanceToNow(new Date(thread.updatedAt), { addSuffix: true })}
                   </p>
                 </div>
                 <Button
                   data-testid={`button-delete-thread-${thread.id}`}
                   variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 flex-shrink-0 hover:bg-destructive/20 hover:text-destructive text-muted-foreground/60"
+                  size="sm"
+                  className="h-8 w-8 p-0 flex-shrink-0 hover:bg-destructive hover:text-destructive-foreground text-destructive"
                   onClick={(e) => {
                     e.stopPropagation();
                     onDeleteThread(thread.id);
                   }}
+                  title="Delete thread"
                 >
-                  <X className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             ))
