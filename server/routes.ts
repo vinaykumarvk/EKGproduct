@@ -6,21 +6,47 @@ import { storage } from "./storage";
 const EKG_API_URL = "https://ekg-service-47249889063.europe-west6.run.app";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Main query endpoint - handles both new threads and follow-up questions
   app.post("/api/query", async (req, res) => {
     try {
       const validatedData = querySchema.parse(req.body);
+      let threadId = validatedData.threadId;
+      let previousResponseId: string | undefined;
       
-      // Call the new REST API endpoint
+      // If threadId provided, get the last assistant message for response_id
+      if (threadId) {
+        const lastMessage = await storage.getLastAssistantMessage(threadId);
+        if (lastMessage && lastMessage.responseId) {
+          previousResponseId = lastMessage.responseId;
+        }
+      } else {
+        // Create a new thread with title from question (truncated)
+        const title = validatedData.question.length > 60 
+          ? validatedData.question.substring(0, 60) + "..."
+          : validatedData.question;
+        const thread = await storage.createThread({ title });
+        threadId = thread.id;
+      }
+      
+      // Prepare API request payload
+      const apiPayload: any = {
+        question: validatedData.question,
+        domain: "wealth_management",
+      };
+      
+      // Add response_id if this is a follow-up question
+      if (previousResponseId) {
+        apiPayload.response_id = previousResponseId;
+      }
+      
+      // Call the EKG API
       const response = await fetch(`${EKG_API_URL}/v1/answer`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "User-Agent": "WealthForce-Knowledge-Agent/1.0"
         },
-        body: JSON.stringify({
-          question: validatedData.question,
-          domain: "wealth_management", // Default domain
-        }),
+        body: JSON.stringify(apiPayload),
       });
 
       if (!response.ok) {
@@ -35,52 +61,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (result && result.answer) {
         const responseText = result.answer;
         
-        // Format metadata from the response
-        let metadata = "";
-        if (result.meta) {
-          const metaParts = [];
-          if (result.response_id) {
-            metaParts.push(`**Response ID**: ${result.response_id}`);
-          }
-          if (result.meta.is_conversational) {
-            metaParts.push(`**Conversational**: Yes`);
-          }
-          if (result.meta.domain) {
-            metaParts.push(`**Domain**: ${result.meta.domain}`);
-          }
-          metadata = metaParts.join('\n');
-        }
-        
         // Format sources if available
         let sources = "";
         if (result.sources && Array.isArray(result.sources) && result.sources.length > 0) {
-          sources = "**Sources:**\n\n" + result.sources.map((source: any, index: number) => {
-            if (typeof source === 'string') {
-              return `[${index + 1}] ${source}`;
-            } else if (source && typeof source === 'object') {
-              // Handle object sources with title, content, etc.
-              const parts = [];
-              if (source.title) parts.push(`**${source.title}**`);
-              if (source.content) parts.push(source.content);
-              if (source.url) parts.push(`URL: ${source.url}`);
-              return `[${index + 1}] ${parts.join('\n')}`;
-            }
-            return '';
-          }).filter(Boolean).join('\n\n');
+          sources = JSON.stringify(result.sources);
         }
         
-        // Save to conversation history
-        await storage.createConversation({
-          question: validatedData.question,
-          mode: validatedData.mode,
-          useCache: !validatedData.refresh,
-          response: responseText,
+        // Format metadata
+        let metadata = "";
+        if (result.meta) {
+          metadata = JSON.stringify(result.meta);
+        }
+        
+        // Save user message
+        await storage.createMessage({
+          threadId: threadId!,
+          role: "user",
+          content: validatedData.question,
+          responseId: null,
+          sources: null,
+          metadata: null,
         });
         
+        // Save assistant message with response_id
+        await storage.createMessage({
+          threadId: threadId!,
+          role: "assistant",
+          content: responseText,
+          responseId: result.response_id || null,
+          sources: sources || null,
+          metadata: metadata || null,
+        });
+        
+        // Update thread timestamp
+        await storage.updateThreadTimestamp(threadId!);
+        
         res.json({
+          threadId: threadId,
           data: responseText,
           metadata: metadata || undefined,
           citations: sources || undefined,
+          responseId: result.response_id,
+          isConversational: result.meta?.is_conversational || false,
         });
       } else {
         res.status(500).json({
@@ -97,7 +119,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all conversations
+  // Thread endpoints
+  
+  // Get all threads
+  app.get("/api/threads", async (req, res) => {
+    try {
+      const threads = await storage.getThreads();
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching threads:", error);
+      res.status(500).json({ error: "Failed to fetch threads" });
+    }
+  });
+
+  // Get single thread
+  app.get("/api/threads/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const thread = await storage.getThread(id);
+      if (thread) {
+        res.json(thread);
+      } else {
+        res.status(404).json({ error: "Thread not found" });
+      }
+    } catch (error) {
+      console.error("Error fetching thread:", error);
+      res.status(500).json({ error: "Failed to fetch thread" });
+    }
+  });
+
+  // Get messages for a thread
+  app.get("/api/threads/:id/messages", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const messages = await storage.getMessages(id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  // Delete thread
+  app.delete("/api/threads/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteThread(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting thread:", error);
+      res.status(500).json({ error: "Failed to delete thread" });
+    }
+  });
+
+  // Legacy conversation endpoints (kept for backward compatibility)
   app.get("/api/conversations", async (req, res) => {
     try {
       const conversations = await storage.getConversations();
@@ -108,7 +183,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get single conversation
   app.get("/api/conversations/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -124,7 +198,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete conversation
   app.delete("/api/conversations/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
