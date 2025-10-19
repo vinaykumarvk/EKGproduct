@@ -15,11 +15,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "User-Agent": "WealthForce-Knowledge-Agent/1.0"
         },
         body: JSON.stringify({
           question: validatedData.question,
-          mode: validatedData.mode,
-          use_cache: !validatedData.refresh, // Invert the refresh logic
+          domain: "wealth_management", // Default domain
         }),
       });
 
@@ -38,20 +38,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Format metadata from the response
         let metadata = "";
         if (result.meta) {
-          metadata = `**Mode**: ${result.mode}\n**Timestamp**: ${result.timestamp}`;
-          if (result.meta.model) {
-            metadata += `\n**Model**: ${result.meta.model}`;
+          const metaParts = [];
+          if (result.response_id) {
+            metaParts.push(`**Response ID**: ${result.response_id}`);
           }
+          if (result.meta.is_conversational) {
+            metaParts.push(`**Conversational**: Yes`);
+          }
+          if (result.meta.domain) {
+            metaParts.push(`**Domain**: ${result.meta.domain}`);
+          }
+          metadata = metaParts.join('\n');
         }
         
-        // Format entities/sources if available
+        // Format sources if available
         let sources = "";
-        if (result.entities && Array.isArray(result.entities) && result.entities.length > 0) {
-          sources = "**Sources:**\n\n" + result.entities.map((entity: any, index: number) => {
-            if (typeof entity === 'string') {
-              return `[${index + 1}] ${entity}`;
-            } else if (entity && typeof entity === 'object') {
-              return `[${index + 1}] ${JSON.stringify(entity)}`;
+        if (result.sources && Array.isArray(result.sources) && result.sources.length > 0) {
+          sources = "**Sources:**\n\n" + result.sources.map((source: any, index: number) => {
+            if (typeof source === 'string') {
+              return `[${index + 1}] ${source}`;
+            } else if (source && typeof source === 'object') {
+              // Handle object sources with title, content, etc.
+              const parts = [];
+              if (source.title) parts.push(`**${source.title}**`);
+              if (source.content) parts.push(source.content);
+              if (source.url) parts.push(`URL: ${source.url}`);
+              return `[${index + 1}] ${parts.join('\n')}`;
             }
             return '';
           }).filter(Boolean).join('\n\n');
