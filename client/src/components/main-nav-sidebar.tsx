@@ -40,7 +40,7 @@ export function MainNavSidebar() {
         
         return (
           <Link key={item.path} href={item.path}>
-            <a
+            <div
               className={cn(
                 "flex flex-col items-center gap-2 p-3 rounded-lg transition-all cursor-pointer group",
                 isActive
@@ -52,7 +52,7 @@ export function MainNavSidebar() {
             >
               <Icon className="w-6 h-6" />
               <span className="text-xs font-medium">{item.name}</span>
-            </a>
+            </div>
           </Link>
         );
       })}
