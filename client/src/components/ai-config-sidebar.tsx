@@ -65,7 +65,7 @@ export function AIConfigSidebar({ onConfigChange }: AIConfigSidebarProps) {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-primary" />
-            <h3 className="font-semibold text-foreground" data-testid="text-config-title">
+            <h3 className="text-sm font-medium text-foreground" data-testid="text-config-title">
               AI Model Configuration
             </h3>
           </div>
@@ -87,7 +87,7 @@ export function AIConfigSidebar({ onConfigChange }: AIConfigSidebarProps) {
       <div className="flex-1 overflow-auto p-4 space-y-6">
         {/* Model Selection */}
         <div className="space-y-2">
-          <Label htmlFor="model-select" className="text-sm font-medium">
+          <Label htmlFor="model-select" className="text-sm font-normal">
             LLM Model
           </Label>
           <Select
@@ -120,7 +120,7 @@ export function AIConfigSidebar({ onConfigChange }: AIConfigSidebarProps) {
         {/* Temperature Slider */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label htmlFor="temperature-slider" className="text-sm font-medium">
+            <Label htmlFor="temperature-slider" className="text-sm font-normal">
               Temperature
             </Label>
             <span className="text-sm font-mono text-muted-foreground" data-testid="text-temperature-value">
@@ -145,7 +145,7 @@ export function AIConfigSidebar({ onConfigChange }: AIConfigSidebarProps) {
         {/* Hops Slider */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label htmlFor="hops-slider" className="text-sm font-medium">
+            <Label htmlFor="hops-slider" className="text-sm font-normal">
               Hops
             </Label>
             <span className="text-sm font-mono text-muted-foreground" data-testid="text-hops-value">
@@ -170,7 +170,7 @@ export function AIConfigSidebar({ onConfigChange }: AIConfigSidebarProps) {
         {/* Token Limit */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="token-limit" className="text-sm font-medium">
+            <Label htmlFor="token-limit" className="text-sm font-normal">
               Token Limit
             </Label>
             <span className="text-sm font-mono text-muted-foreground" data-testid="text-token-limit-value">
@@ -195,7 +195,7 @@ export function AIConfigSidebar({ onConfigChange }: AIConfigSidebarProps) {
 
         {/* System Prompt */}
         <div className="space-y-2">
-          <Label htmlFor="system-prompt" className="text-sm font-medium">
+          <Label htmlFor="system-prompt" className="text-sm font-normal">
             System Prompt
           </Label>
           <Textarea

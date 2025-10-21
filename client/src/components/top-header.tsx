@@ -35,7 +35,7 @@ export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch }
           </div>
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Questions</span>
-            <span className="text-sm font-semibold text-foreground" data-testid="text-questions-count">
+            <span className="text-sm font-medium text-foreground" data-testid="text-questions-count">
               {questionsAsked.toLocaleString()}
             </span>
           </div>
@@ -47,7 +47,7 @@ export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch }
           </div>
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Quizzes</span>
-            <span className="text-sm font-semibold text-foreground" data-testid="text-quizzes-count">
+            <span className="text-sm font-medium text-foreground" data-testid="text-quizzes-count">
               {quizzesCompleted.toLocaleString()}
             </span>
           </div>

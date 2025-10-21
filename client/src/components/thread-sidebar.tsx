@@ -109,7 +109,7 @@ export function ThreadSidebar({ onSelectThread, onNewChat, onDeleteThread, selec
                 data-testid={`thread-item-${thread.id}`}
               >
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-sm font-medium text-foreground break-words line-clamp-2">
+                  <p className="text-sm font-normal text-foreground break-words line-clamp-2">
                     {thread.title}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">

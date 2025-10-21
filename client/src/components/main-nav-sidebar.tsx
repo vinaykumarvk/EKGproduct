@@ -51,7 +51,7 @@ export function MainNavSidebar() {
               title={item.description}
             >
               <Icon className="w-6 h-6" />
-              <span className="text-xs font-medium">{item.name}</span>
+              <span className="text-xs font-normal">{item.name}</span>
             </div>
           </Link>
         );
