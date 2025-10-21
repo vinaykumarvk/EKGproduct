@@ -5,32 +5,32 @@ export default function WorkshopPage() {
   const templates = [
     {
       name: "New Report",
-      description: "Generate comprehensive financial or market analysis reports.",
+      description: "Generate comprehensive financial or market analysis reports",
       icon: FileText,
     },
     {
       name: "Client Proposal",
-      description: "Craft compelling proposals for new clients or projects.",
+      description: "Craft compelling proposals for new clients or projects",
       icon: Upload,
     },
     {
       name: "Strategic Memo",
-      description: "Compose internal memos for strategic initiatives or announcements.",
+      description: "Compose internal memos for strategic initiatives or announcements",
       icon: Network,
     },
     {
       name: "Presentation Deck",
-      description: "Create visually engaging presentations for meetings or conferences.",
+      description: "Create visually engaging presentations for meetings or conferences",
       icon: Presentation,
     },
     {
       name: "RFP Response",
-      description: "Develop detailed responses to Request for Proposals efficiently.",
+      description: "Develop detailed responses to Request for Proposals efficiently",
       icon: Clipboard,
     },
     {
       name: "Case Study",
-      description: "Document successful projects and client outcomes.",
+      description: "Document successful projects and client outcomes",
       icon: BookOpen,
     }
   ];
