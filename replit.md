@@ -6,6 +6,11 @@ The WealthForce Knowledge Agent is an enterprise-grade conversational AI chatbot
 ## Recent Changes
 
 ### October 21, 2025
+- **Global Top Header**: Added a persistent header bar across all sections (56px height) featuring:
+  - Questions Asked counter with MessageSquare icon and formatted display
+  - Quizzes Completed counter with Trophy icon and formatted display
+  - Global search bar for searching conversations, topics, and documents
+  - User menu dropdown with Profile, Preferences, History, and Logout options
 - **Multi-Section Navigation**: Added a main navigation sidebar with four sections: Explore, Workshop, Quiz, and Atlas. The sidebar features icon-based navigation with active state highlighting.
 - **Explore Section**: The existing chatbot functionality is now housed in the Explore section, accessible from the main navigation.
 - **Workshop Section**: Created placeholder page for interactive tools and utilities including Calculator, Document Builder, and Analytics Dashboard (marked as coming soon).
@@ -40,7 +45,13 @@ I prefer simple language and detailed explanations. I want iterative development
 The application employs a professional, enterprise-grade architecture focused on conversational AI.
 
 ### UI/UX Decisions
-The UI is inspired by ChatGPT, featuring a multi-section layout with a main navigation sidebar (80px width) on the far left for section switching (Explore, Workshop, Quiz, Atlas), followed by a thread sidebar (256px) in the Explore section, the main content area (flex-1), and an AI configuration sidebar (320px, collapsible to 48px) on the right. It includes a fixed header and footer for consistent navigation and input.
+The UI is inspired by ChatGPT, featuring a comprehensive layout with:
+- **Global Top Header** (56px height): Persistent across all sections with stats counters, global search, and user menu
+- **Main Navigation Sidebar** (80px width): Far left for section switching (Explore, Workshop, Quiz, Atlas)
+- **Thread Sidebar** (256px): Available in the Explore section for conversation history
+- **Main Content Area** (flex-1): Central workspace for each section
+- **AI Configuration Sidebar** (320px, collapsible to 48px): Right side panel in Explore for model settings
+The layout includes fixed headers and footers for consistent navigation and input across all sections.
 - **Color Palette**: Uses a vibrant blue for primary actions and user messages, gray tones for assistant messages, and a deep charcoal background with elevated surfaces for dark mode.
 - **Typography**: Employs Inter for UI text and system fonts for messages, with a monospace font for code blocks.
 - **Message Display**: User messages are displayed in blue bubbles on the right, while assistant messages are in gray bubbles on the left, rendered with comprehensive markdown support including HTML, citation superscripts, and code blocks with syntax highlighting. Source documents with relevance scores are displayed below assistant messages.
@@ -60,6 +71,7 @@ The UI is inspired by ChatGPT, featuring a multi-section layout with a main navi
 - **Loading States**: Features beautiful loading states and animations for a smooth user experience.
 
 ### Feature Specifications
+- **Global Header**: Persistent top bar with Questions Asked counter, Quizzes Completed counter, global search functionality, and user menu with profile management options. All stats update in real-time.
 - **Multi-Section Navigation**: Main navigation sidebar with four sections - Explore (conversational AI), Workshop (tools), Quiz (knowledge testing), and Atlas (knowledge map). Active section is highlighted with primary color.
 - **AI Model Configuration**: Collapsible right sidebar with controls for LLM model selection, temperature adjustment, knowledge graph hops, token limits, and custom system prompts. Configuration changes are tracked in local state for future backend integration.
 - **Core Conversational Interface**: ChatGPT-style scrolling message view with fixed input, auto-scroll, and keyboard shortcuts (Enter to send, Shift+Enter for newlines).
