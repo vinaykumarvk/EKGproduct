@@ -5,6 +5,14 @@ The WealthForce Knowledge Agent is an enterprise-grade conversational AI chatbot
 
 ## Recent Changes
 
+### October 21, 2025
+- **Multi-Section Navigation**: Added a main navigation sidebar with four sections: Explore, Workshop, Quiz, and Atlas. The sidebar features icon-based navigation with active state highlighting.
+- **Explore Section**: The existing chatbot functionality is now housed in the Explore section, accessible from the main navigation.
+- **Workshop Section**: Created placeholder page for interactive tools and utilities including Calculator, Document Builder, and Analytics Dashboard (marked as coming soon).
+- **Quiz Section**: Created placeholder page for knowledge testing with three quiz categories: Wealth Management Basics, Investment Strategies, and Financial Products, each with difficulty levels and question counts.
+- **Atlas Section**: Created placeholder page for knowledge mapping and resource library with tabs for Overview, Resources, and Data Sources.
+- **Routing Updates**: Updated the application routing to support multiple sections while maintaining the existing Explore/chatbot functionality.
+
 ### October 19, 2025
 - **Professional Response Formatting**: Removed technical headers ("KG + VectorStore Answer"), context IDs, and "Question:" labels for cleaner display. Converted API formatting (Point 1:, Finding 1/) to standard bullet points.
 - **Download & Export Features**: Added dropdown menu with Markdown (.md) and PDF (.pdf) export options for individual messages. PDF generation includes automatic pagination for long content.
@@ -25,7 +33,7 @@ I prefer simple language and detailed explanations. I want iterative development
 The application employs a professional, enterprise-grade architecture focused on conversational AI.
 
 ### UI/UX Decisions
-The UI is inspired by ChatGPT, featuring a two-column layout with a fixed sidebar (256px) and a main content area. It includes a fixed header and footer for consistent navigation and input.
+The UI is inspired by ChatGPT, featuring a multi-section layout with a main navigation sidebar (80px width) on the far left for section switching (Explore, Workshop, Quiz, Atlas), followed by a thread sidebar (256px) in the Explore section, and the main content area. It includes a fixed header and footer for consistent navigation and input.
 - **Color Palette**: Uses a vibrant blue for primary actions and user messages, gray tones for assistant messages, and a deep charcoal background with elevated surfaces for dark mode.
 - **Typography**: Employs Inter for UI text and system fonts for messages, with a monospace font for code blocks.
 - **Message Display**: User messages are displayed in blue bubbles on the right, while assistant messages are in gray bubbles on the left, rendered with comprehensive markdown support including HTML, citation superscripts, and code blocks with syntax highlighting. Source documents with relevance scores are displayed below assistant messages.
@@ -45,6 +53,7 @@ The UI is inspired by ChatGPT, featuring a two-column layout with a fixed sideba
 - **Loading States**: Features beautiful loading states and animations for a smooth user experience.
 
 ### Feature Specifications
+- **Multi-Section Navigation**: Main navigation sidebar with four sections - Explore (conversational AI), Workshop (tools), Quiz (knowledge testing), and Atlas (knowledge map). Active section is highlighted with primary color.
 - **Core Conversational Interface**: ChatGPT-style scrolling message view with fixed input, auto-scroll, and keyboard shortcuts (Enter to send, Shift+Enter for newlines).
 - **Context Maintenance**: Automatic inclusion of `conversation_id` or `response_id` in follow-up questions to maintain server-side context.
 - **Markdown Rendering**: Robust markdown rendering for assistant messages, supporting GitHub-flavored markdown, HTML rendering (citations, links), HTML entity decoding, and removal of Knowledge Graph tags.
