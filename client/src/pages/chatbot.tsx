@@ -33,6 +33,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { ThreadSidebar } from "@/components/thread-sidebar";
+import { AIConfigSidebar, type AIConfig } from "@/components/ai-config-sidebar";
 import type { Thread, Message } from "@shared/schema";
 
 // Helper function to decode HTML entities
@@ -237,6 +238,13 @@ export default function ChatbotPage() {
   const [currentThreadId, setCurrentThreadId] = useState<number | undefined>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [mode, setMode] = useState<"concise" | "balanced" | "deep">("concise"); // Short is default
+  const [aiConfig, setAIConfig] = useState<AIConfig>({
+    model: "GPT-4o",
+    temperature: 0.7,
+    hops: 3,
+    tokenLimit: 2048,
+    systemPrompt: "You are a helpful wealth management AI assistant.",
+  });
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -398,6 +406,11 @@ export default function ChatbotPage() {
 
   const isLoading = queryMutation.isPending;
   const hasMessages = messages.length > 0;
+
+  const handleConfigChange = (config: AIConfig) => {
+    setAIConfig(config);
+    // Future: Send config to backend or use in API calls
+  };
 
   return (
     <div className="flex flex-1 bg-background">
@@ -641,6 +654,8 @@ export default function ChatbotPage() {
           </div>
         </div>
       </div>
+
+      <AIConfigSidebar onConfigChange={handleConfigChange} />
     </div>
   );
 }
