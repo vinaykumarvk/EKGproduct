@@ -10,6 +10,7 @@ import { TopHeader } from "@/components/top-header";
 import ChatbotPage from "@/pages/chatbot";
 import WorkshopPage from "@/pages/workshop";
 import QuizPage from "@/pages/quiz";
+import QuizMockupPage from "@/pages/quiz-mockup";
 import AtlasPage from "@/pages/atlas";
 import NotFound from "@/pages/not-found";
 
@@ -35,6 +36,7 @@ function Router() {
           <Route path="/" component={ChatbotPage} />
           <Route path="/workshop" component={WorkshopPage} />
           <Route path="/quiz" component={QuizPage} />
+          <Route path="/quiz-mockup" component={QuizMockupPage} />
           <Route path="/atlas" component={AtlasPage} />
           <Route component={NotFound} />
         </Switch>
