@@ -696,20 +696,15 @@ export default function ChatbotPage() {
         <div className="border-t border-border bg-card/30 backdrop-blur-sm p-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <Textarea
-                  data-testid="input-question"
-                  placeholder="Ask a follow-up question..."
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="min-h-[60px] max-h-[200px] resize-none"
-                  disabled={isLoading}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Press Enter to send, Shift + Enter for new line
-                </p>
-              </div>
+              <Textarea
+                data-testid="input-question"
+                placeholder="Ask a follow-up question..."
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="flex-1 min-h-[60px] max-h-[200px] resize-none"
+                disabled={isLoading}
+              />
               
               {/* Quiz Me Button - Shows when there's enough conversation */}
               {hasMessages && messages.length >= 2 && (

@@ -6,6 +6,17 @@ The WealthForce Knowledge Agent is an enterprise-grade conversational AI chatbot
 ## Recent Changes
 
 ### October 22, 2025
+- **Flash Quiz Feature**: Implemented inline quiz generation from conversation context:
+  - "Quiz Me" button (⚡ icon) appears in input area after 1 Q&A exchange (2+ messages)
+  - Uses OpenAI GPT-4o-mini to generate 3-5 multiple-choice questions based on conversation history
+  - Questions appear inline in chat thread as QuizMessage component
+  - Interactive UI with instant feedback (✅ Correct / ❌ Incorrect) and explanations
+  - Score display when all questions are answered
+  - Defensive JSON parsing handles markdown-wrapped responses from OpenAI
+  - Shared types in `client/src/types/quiz.ts` for type safety
+  - Backend endpoint `/api/generate-quiz` with error handling and validation
+  - Removed "Press Enter to send" helper text for cleaner input area alignment
+  - All three input elements (textarea, Quiz Me button, Send button) now align perfectly on same line
 - **Quiz Tab Dual-Mode Implementation**: Redesigned Quiz page with two learning modes for knowledge retention and self-assessment:
   - **Structured Quiz Section**: 500+ questions across 5 comprehensive categories
     - Wealth Management Fundamentals (85 questions, Beginner, 25 min)
