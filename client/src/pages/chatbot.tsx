@@ -26,7 +26,8 @@ import {
   Download,
   RefreshCw,
   FileText,
-  FileType
+  FileType,
+  Zap
 } from "lucide-react";
 import jsPDF from "jspdf";
 import ReactMarkdown from "react-markdown";
@@ -34,7 +35,9 @@ import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { ThreadSidebar } from "@/components/thread-sidebar";
 import { AIConfigSidebar, type AIConfig } from "@/components/ai-config-sidebar";
+import { QuizMessage } from "@/components/quiz-message";
 import type { Thread, Message } from "@shared/schema";
+import type { QuizData } from "@/types/quiz";
 
 // Helper function to decode HTML entities
 function decodeHTMLEntities(text: string): string {
@@ -237,6 +240,7 @@ export default function ChatbotPage() {
   const [question, setQuestion] = useState("");
   const [currentThreadId, setCurrentThreadId] = useState<number | undefined>();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [quizzes, setQuizzes] = useState<QuizData[]>([]);
   const [mode, setMode] = useState<"concise" | "balanced" | "deep">("concise"); // Short is default
   const [aiConfig, setAIConfig] = useState<AIConfig>({
     model: "GPT-4o",
@@ -268,6 +272,8 @@ export default function ChatbotPage() {
     } else {
       setMessages([]);
     }
+    // Clear quizzes when thread changes
+    setQuizzes([]);
   }, [fetchedMessages]);
 
   // Auto-scroll to show top of new assistant messages
@@ -363,6 +369,66 @@ export default function ChatbotPage() {
       question,
       threadId: currentThreadId,
     });
+  };
+
+  const quizMutation = useMutation({
+    mutationFn: async (threadId: number) => {
+      const response = await apiRequest("POST", "/api/generate-quiz", {
+        threadId,
+      });
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: (data) => {
+      if (data.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+      } else if (data.questions && data.questions.length > 0) {
+        // Add quiz to the list
+        const newQuiz: QuizData = {
+          id: Date.now(),
+          questions: data.questions,
+        };
+        setQuizzes(prev => [...prev, newQuiz]);
+        
+        toast({
+          title: "Quiz Generated!",
+          description: `${data.questions.length} questions ready to test your knowledge.`,
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate quiz",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleGenerateQuiz = () => {
+    if (!currentThreadId) {
+      toast({
+        title: "No Conversation",
+        description: "Start a conversation before generating a quiz",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (messages.length < 4) {
+      toast({
+        title: "Not Enough Content",
+        description: "Have at least 2 Q&A exchanges before generating a quiz",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    quizMutation.mutate(currentThreadId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -603,6 +669,13 @@ export default function ChatbotPage() {
               );
             })}
 
+            {/* Render quizzes inline */}
+            {quizzes.map((quiz) => (
+              <div key={quiz.id} className="mb-6" data-testid={`quiz-${quiz.id}`}>
+                <QuizMessage questions={quiz.questions} />
+              </div>
+            ))}
+
             {isLoading && (
               <div className="mb-6 flex gap-4 justify-start" data-testid="loading-indicator">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -637,6 +710,31 @@ export default function ChatbotPage() {
                   Press Enter to send, Shift + Enter for new line
                 </p>
               </div>
+              
+              {/* Quiz Me Button - Shows when there's enough conversation */}
+              {hasMessages && messages.length >= 4 && (
+                <Button
+                  data-testid="button-quiz-me"
+                  onClick={handleGenerateQuiz}
+                  disabled={quizMutation.isPending}
+                  size="lg"
+                  variant="outline"
+                  className="h-[60px] px-4 gap-2"
+                >
+                  {quizMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="hidden sm:inline">Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-5 h-5" />
+                      <span className="hidden sm:inline">Quiz Me</span>
+                    </>
+                  )}
+                </Button>
+              )}
+              
               <Button
                 data-testid="button-submit"
                 onClick={handleSubmit}

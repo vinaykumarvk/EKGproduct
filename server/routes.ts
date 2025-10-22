@@ -313,13 +313,29 @@ Return ONLY valid JSON in this exact format:
         return res.status(500).json({ error: "Failed to generate quiz" });
       }
 
-      // Parse the quiz data
+      // Parse the quiz data with defensive handling for backtick-wrapped JSON
       let parsedQuiz;
       try {
-        parsedQuiz = JSON.parse(quizData);
+        // Remove potential markdown code block wrappers
+        let cleanedData = quizData.trim();
+        if (cleanedData.startsWith('```json')) {
+          cleanedData = cleanedData.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (cleanedData.startsWith('```')) {
+          cleanedData = cleanedData.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+        
+        parsedQuiz = JSON.parse(cleanedData);
+        
+        // Validate structure
+        if (!parsedQuiz.questions || !Array.isArray(parsedQuiz.questions) || parsedQuiz.questions.length === 0) {
+          throw new Error("Invalid quiz structure: missing or empty questions array");
+        }
       } catch (parseError) {
         console.error("Failed to parse quiz JSON:", quizData);
-        return res.status(500).json({ error: "Failed to parse quiz data" });
+        console.error("Parse error:", parseError);
+        return res.status(500).json({ 
+          error: "Failed to parse quiz data. The AI returned an invalid format. Please try again." 
+        });
       }
 
       res.json(parsedQuiz);
