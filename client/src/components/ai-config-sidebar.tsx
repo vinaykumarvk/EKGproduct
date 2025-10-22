@@ -26,7 +26,7 @@ export interface AIConfig {
 }
 
 export function AIConfigSidebar({ onConfigChange }: AIConfigSidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [config, setConfig] = useState<AIConfig>({
     model: "GPT-4o",
     temperature: 0.7,
