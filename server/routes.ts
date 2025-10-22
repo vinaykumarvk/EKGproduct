@@ -225,6 +225,113 @@ User's Question: ${validatedData.question}`;
     }
   });
 
+  // Generate flash quiz from conversation
+  app.post("/api/generate-quiz", async (req, res) => {
+    try {
+      const { threadId } = req.body;
+      
+      if (!threadId) {
+        return res.status(400).json({ error: "threadId is required" });
+      }
+
+      // Check if OPENAI_API_KEY is available
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "OpenAI API key not configured" });
+      }
+
+      // Get recent messages from the thread
+      const messages = await storage.getRecentMessagePairs(threadId, 10); // Get up to 10 Q&A pairs
+      
+      if (messages.length < 2) {
+        return res.status(400).json({ error: "Not enough conversation history to generate a quiz" });
+      }
+
+      // Format messages for OpenAI
+      const conversationContext = [];
+      for (let i = 0; i < messages.length; i += 2) {
+        const userMsg = messages[i];
+        const assistantMsg = messages[i + 1];
+        
+        if (userMsg && assistantMsg) {
+          conversationContext.push({
+            question: userMsg.content,
+            answer: cleanAnswer(assistantMsg.content)
+          });
+        }
+      }
+
+      // Import OpenAI
+      const { default: OpenAI } = await import('openai');
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      // Generate quiz using OpenAI
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a quiz generator for a wealth management knowledge base. Generate 3-5 multiple-choice questions based on the conversation provided. 
+
+Each question should:
+- Test understanding of key concepts discussed
+- Have 4 answer options (A, B, C, D)
+- Include the correct answer
+- Include a brief explanation (2-3 sentences) of why the answer is correct
+
+Return ONLY valid JSON in this exact format:
+{
+  "questions": [
+    {
+      "question": "Question text here?",
+      "options": {
+        "A": "Option A text",
+        "B": "Option B text",
+        "C": "Option C text",
+        "D": "Option D text"
+      },
+      "correctAnswer": "A",
+      "explanation": "Explanation why A is correct."
+    }
+  ]
+}`
+          },
+          {
+            role: "user",
+            content: `Generate a quiz based on this conversation:\n\n${conversationContext.map((ctx, i) => 
+              `Q${i + 1}: ${ctx.question}\nA${i + 1}: ${ctx.answer}`
+            ).join('\n\n')}`
+          }
+        ],
+        temperature: 0.7,
+      });
+
+      const quizData = completion.choices[0]?.message?.content;
+      
+      if (!quizData) {
+        return res.status(500).json({ error: "Failed to generate quiz" });
+      }
+
+      // Parse the quiz data
+      let parsedQuiz;
+      try {
+        parsedQuiz = JSON.parse(quizData);
+      } catch (parseError) {
+        console.error("Failed to parse quiz JSON:", quizData);
+        return res.status(500).json({ error: "Failed to parse quiz data" });
+      }
+
+      res.json(parsedQuiz);
+      
+    } catch (error) {
+      console.error("Quiz generation error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to generate quiz",
+      });
+    }
+  });
+
   // Thread endpoints
   
   // Get all threads
