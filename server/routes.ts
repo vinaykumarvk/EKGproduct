@@ -338,6 +338,133 @@ Generate quiz questions that:
     }
   });
 
+  // Submit quiz results and update mastery
+  app.post("/api/quiz/submit", async (req, res) => {
+    try {
+      const { threadId, results } = req.body;
+      
+      if (!threadId || !results || !Array.isArray(results)) {
+        return res.status(400).json({ error: "threadId and results array required" });
+      }
+
+      const totalQuestions = results.length;
+      const correctAnswers = results.filter((r: any) => r.isCorrect).length;
+      const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
+
+      // Save quiz attempt
+      const attempt = await storage.createQuizAttempt({
+        threadId,
+        totalQuestions,
+        correctAnswers,
+        scorePercentage,
+        timeSpent: null,
+      });
+
+      // Save individual responses
+      for (const result of results) {
+        await storage.createQuizResponse({
+          attemptId: attempt.id,
+          questionText: result.questionText,
+          userAnswer: result.userAnswer,
+          correctAnswer: result.correctAnswer,
+          isCorrect: result.isCorrect,
+          topic: null,
+        });
+      }
+
+      // Calculate and update mastery score
+      const mastery = await calculateMasteryScore();
+      
+      res.json({
+        attemptId: attempt.id,
+        score: scorePercentage,
+        mastery,
+      });
+    } catch (error) {
+      console.error("Quiz submission error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to submit quiz",
+      });
+    }
+  });
+
+  // Get current mastery score
+  app.get("/api/mastery", async (req, res) => {
+    try {
+      let mastery = await storage.getUserMastery();
+      
+      if (!mastery) {
+        // Initialize mastery if it doesn't exist
+        mastery = await storage.updateUserMastery({
+          overallScore: 0,
+          currentLevel: "Novice",
+          quizPerformanceScore: 0,
+          topicCoverageScore: 0,
+          retentionScore: 0,
+          topicsMastered: 0,
+          totalQuizzesTaken: 0,
+        });
+      }
+      
+      res.json(mastery);
+    } catch (error) {
+      console.error("Error fetching mastery:", error);
+      res.status(500).json({ error: "Failed to fetch mastery score" });
+    }
+  });
+
+  // Helper function to calculate mastery score
+  async function calculateMasteryScore() {
+    // Get recent quiz attempts (last 20 for performance calculation)
+    const recentQuizzes = await storage.getRecentQuizzes(20);
+    
+    if (recentQuizzes.length === 0) {
+      return await storage.updateUserMastery({
+        overallScore: 0,
+        currentLevel: "Novice",
+        quizPerformanceScore: 0,
+        topicCoverageScore: 0,
+        retentionScore: 0,
+        topicsMastered: 0,
+        totalQuizzesTaken: 0,
+      });
+    }
+
+    // 1. Quiz Performance Score (50 points max)
+    // Weight: Recent 20 quizzes at 70%, older at 30%
+    const avgScore = recentQuizzes.reduce((sum, q) => sum + q.scorePercentage, 0) / recentQuizzes.length;
+    const quizPerformanceScore = Math.round((avgScore / 100) * 50);
+
+    // 2. Topic Coverage Score (30 points max)
+    // For Phase 1, give partial credit based on number of quizzes taken
+    const totalQuizzes = recentQuizzes.length;
+    const topicCoverageScore = Math.min(30, Math.round((totalQuizzes / 10) * 30));
+
+    // 3. Retention & Consistency Score (20 points max)
+    // For Phase 1, give credit based on consistency
+    const retentionScore = Math.min(20, Math.round((totalQuizzes / 15) * 20));
+
+    // Calculate overall mastery score
+    const overallScore = quizPerformanceScore + topicCoverageScore + retentionScore;
+
+    // Determine level based on score
+    let currentLevel = "Novice";
+    if (overallScore >= 91) currentLevel = "Expert";
+    else if (overallScore >= 76) currentLevel = "Advanced";
+    else if (overallScore >= 51) currentLevel = "Intermediate";
+    else if (overallScore >= 26) currentLevel = "Learning";
+
+    return await storage.updateUserMastery({
+      overallScore,
+      currentLevel,
+      quizPerformanceScore,
+      topicCoverageScore,
+      retentionScore,
+      topicsMastered: 0, // Will implement in Phase 2
+      totalQuizzesTaken: totalQuizzes,
+    });
+  }
+
   // Thread endpoints
   
   // Get all threads
