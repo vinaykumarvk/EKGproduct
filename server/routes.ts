@@ -307,11 +307,18 @@ Return your response as valid JSON in this EXACT format (no additional text befo
       }
 
       const ekgResult = await ekgResponse.json();
-      const quizData = ekgResult.answer || ekgResult.data;
+      console.log("EKG Response keys:", Object.keys(ekgResult));
+      
+      // Handle both 'answer' and 'markdown' fields (same as regular query endpoint)
+      const quizData = ekgResult.markdown || ekgResult.answer;
       
       if (!quizData) {
-        return res.status(500).json({ error: "Failed to generate quiz" });
+        console.error("No quiz data found in EKG response. Available keys:", Object.keys(ekgResult));
+        console.error("Full response:", JSON.stringify(ekgResult, null, 2).substring(0, 1000));
+        return res.status(500).json({ error: "Failed to generate quiz - no response from service" });
       }
+      
+      console.log("Quiz data received, length:", quizData.length);
 
       // Parse the quiz data with defensive handling for backtick-wrapped JSON
       let parsedQuiz;
