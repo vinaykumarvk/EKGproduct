@@ -15,30 +15,32 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, ZoomIn, ZoomOut, Maximize2, Database } from "lucide-react";
+import { Search, ZoomIn, ZoomOut, Maximize2, Database, ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 // Custom node component for knowledge graph nodes
 function KnowledgeNode({ data }: NodeProps) {
-  const getNodeColor = (level: number) => {
+  const getNodeColor = (level: number, isExpanded: boolean) => {
     const colors: Record<number, string> = {
-      0: "bg-primary/30 border-primary border-2", // Root
-      1: "bg-blue-500/20 border-blue-500", // Level 1
-      2: "bg-green-500/20 border-green-500", // Level 2
+      0: isExpanded ? "bg-primary/40 border-primary border-2" : "bg-primary/30 border-primary border-2",
+      1: isExpanded ? "bg-blue-500/30 border-blue-500 border-2" : "bg-blue-500/20 border-blue-500",
+      2: "bg-green-500/20 border-green-500",
     };
     return colors[level] || "bg-gray-500/20 border-gray-500";
   };
 
   const getNodeSize = (level: number) => {
-    if (level === 0) return "min-w-[200px] max-w-[250px]"; // Root - largest
-    if (level === 1) return "min-w-[160px] max-w-[200px]"; // Level 1 - medium
-    return "min-w-[140px] max-w-[180px]"; // Level 2 - smallest
+    if (level === 0) return "min-w-[200px] max-w-[250px]";
+    if (level === 1) return "min-w-[160px] max-w-[200px]";
+    return "min-w-[140px] max-w-[180px]";
   };
+
+  const hasChildren = data.hasChildren;
+  const isExpanded = data.isExpanded;
 
   return (
     <>
-      {/* Input handle (target) - receives connections from parent */}
       {data.level > 0 && (
         <Handle
           type="target"
@@ -48,13 +50,21 @@ function KnowledgeNode({ data }: NodeProps) {
       )}
       
       <Card
-        className={`p-3 ${getNodeSize(data.level)} ${getNodeColor(data.level)} cursor-pointer hover:shadow-lg transition-all`}
+        className={`p-3 ${getNodeSize(data.level)} ${getNodeColor(data.level, isExpanded)} cursor-pointer hover:shadow-lg transition-all ${hasChildren ? 'hover:scale-105' : ''}`}
         data-testid={`mindmap-node-${data.id}`}
+        onClick={data.onClick}
       >
         <div className="space-y-1">
-          {data.level === 0 && (
-            <Database className="w-5 h-5 text-primary mx-auto mb-2" />
-          )}
+          <div className="flex items-center justify-center gap-1">
+            {data.level === 0 && (
+              <Database className="w-5 h-5 text-primary mb-2" />
+            )}
+            {hasChildren && data.level < 2 && (
+              isExpanded ? 
+                <ChevronDown className="w-4 h-4 text-muted-foreground" /> :
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            )}
+          </div>
           <div className={`${data.level === 0 ? 'text-sm' : 'text-xs'} font-semibold text-foreground text-center`} title={data.label}>
             {data.label}
           </div>
@@ -66,7 +76,6 @@ function KnowledgeNode({ data }: NodeProps) {
         </div>
       </Card>
       
-      {/* Output handle (source) - sends connections to children */}
       {data.level < 2 && (
         <Handle
           type="source"
@@ -91,6 +100,9 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [allNodes, setAllNodes] = useState<Node[]>([]);
+  const [allEdges, setAllEdges] = useState<Edge[]>([]);
 
   // Build hierarchical tree structure from knowledge graph
   useEffect(() => {
@@ -101,31 +113,24 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
       const name = node.name.toLowerCase();
       const type = node.type?.toLowerCase() || "";
       
-      // Order Journey & Processes
       if (name.includes("order") || name.includes("placement") || name.includes("settlement")) {
         return "Order Journey & Processes";
       }
-      // Customer & Account Management
       if (name.includes("customer") || name.includes("account") || name.includes("investor") || name.includes("kyc")) {
         return "Customer & Account Management";
       }
-      // Products & Securities
       if (name.includes("product") || name.includes("fund") || name.includes("security") || name.includes("portfolio")) {
         return "Products & Securities";
       }
-      // Transactions & Operations
       if (name.includes("transaction") || name.includes("redemption") || name.includes("sip") || name.includes("swp") || name.includes("stp")) {
         return "Transactions & Operations";
       }
-      // Systems & Integration
       if (type.includes("system") || name.includes("api") || name.includes("integration")) {
         return "Systems & Integration";
       }
-      // Compliance & Regulations
       if (name.includes("compliance") || name.includes("regulation") || name.includes("sebi") || name.includes("kyc")) {
         return "Compliance & Regulations";
       }
-      // Reports & Documents
       if (type.includes("report") || name.includes("report") || name.includes("document")) {
         return "Reports & Documents";
       }
@@ -143,7 +148,6 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
       categories[category].push(node);
     });
 
-    // Remove "Other" category if it has too few items
     if (categories["Other"] && categories["Other"].length < 5) {
       delete categories["Other"];
     }
@@ -151,26 +155,34 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
     // Create hierarchical layout
     const graphNodes: Node[] = [];
     const graphEdges: Edge[] = [];
+    const childrenMap: Record<string, string[]> = {};
 
     // Root node (Level 0)
     const rootX = 800;
     const rootY = 100;
+    const rootId = "root";
+    
     graphNodes.push({
-      id: "root",
+      id: rootId,
       type: "knowledge",
       position: { x: rootX, y: rootY },
       data: {
-        id: "root",
+        id: rootId,
         label: "Order Management & Wealth Operations",
         level: 0,
         count: knowledgeGraphData.nodes.length,
+        hasChildren: true,
+        isExpanded: false,
+        onClick: () => handleNodeClick(rootId),
       },
     });
 
-    // Level 1: Main categories arranged in a semi-circle around root
+    childrenMap[rootId] = [];
+
+    // Level 1: Main categories
     const categoryNames = Object.keys(categories).filter(cat => cat !== "Other");
     const level1Radius = 400;
-    const level1StartAngle = -Math.PI / 2; // Start from top
+    const level1StartAngle = -Math.PI / 2;
     const level1AngleStep = Math.PI / (categoryNames.length - 1 || 1);
 
     categoryNames.forEach((category, catIndex) => {
@@ -188,20 +200,25 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
           label: category,
           level: 1,
           count: categories[category].length,
+          hasChildren: true,
+          isExpanded: false,
+          onClick: () => handleNodeClick(categoryId),
         },
       });
 
-      // Edge from root to category
+      childrenMap[rootId].push(categoryId);
+      childrenMap[categoryId] = [];
+
       graphEdges.push({
         id: `edge-root-${categoryId}`,
-        source: "root",
+        source: rootId,
         target: categoryId,
         type: "smoothstep",
         animated: false,
         style: { stroke: "#3b82f6", strokeWidth: 2 },
       });
 
-      // Level 2: Subcategories/items - show top 5 most relevant per category
+      // Level 2: Items
       const subcategories = categories[category]
         .sort((a, b) => (b.evidence_count || 0) - (a.evidence_count || 0))
         .slice(0, 5);
@@ -226,10 +243,14 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
             level: 2,
             type: node.type,
             evidenceCount: node.evidence_count,
+            hasChildren: false,
+            isExpanded: false,
+            onClick: () => {},
           },
         });
 
-        // Edge from category to subcategory
+        childrenMap[categoryId].push(nodeId);
+
         graphEdges.push({
           id: `edge-${categoryId}-${nodeId}`,
           source: categoryId,
@@ -241,27 +262,100 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
       });
     });
 
-    setNodes(graphNodes);
-    setEdges(graphEdges);
-  }, [knowledgeGraphData, setNodes, setEdges]);
+    setAllNodes(graphNodes);
+    setAllEdges(graphEdges);
+    
+    // Store children mapping for expansion logic
+    (window as any).__childrenMap = childrenMap;
+  }, [knowledgeGraphData]);
 
-  // Filter nodes based on search
-  const filteredNodes = nodes.map(node => ({
-    ...node,
-    hidden: searchTerm ? !node.data.label.toLowerCase().includes(searchTerm.toLowerCase()) : false,
-  }));
+  // Handle node click to expand/collapse
+  const handleNodeClick = useCallback((nodeId: string) => {
+    setExpandedNodes(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(nodeId)) {
+        // Collapse: remove this node and all descendants
+        newExpanded.delete(nodeId);
+        const removeDescendants = (id: string) => {
+          const children = (window as any).__childrenMap?.[id] || [];
+          children.forEach((childId: string) => {
+            newExpanded.delete(childId);
+            removeDescendants(childId);
+          });
+        };
+        removeDescendants(nodeId);
+      } else {
+        // Expand: add this node
+        newExpanded.add(nodeId);
+      }
+      return newExpanded;
+    });
+  }, []);
+
+  // Update visible nodes and edges based on expansion state
+  useEffect(() => {
+    if (allNodes.length === 0) return;
+
+    // Determine which nodes should be visible
+    const visibleNodeIds = new Set<string>(['root']); // Root is always visible
+    
+    const addVisibleChildren = (nodeId: string) => {
+      if (expandedNodes.has(nodeId)) {
+        const children = (window as any).__childrenMap?.[nodeId] || [];
+        children.forEach((childId: string) => {
+          visibleNodeIds.add(childId);
+        });
+      }
+    };
+
+    // Start from root and add visible descendants
+    visibleNodeIds.forEach(nodeId => addVisibleChildren(nodeId));
+    allNodes.forEach(node => {
+      if (visibleNodeIds.has(node.id)) {
+        addVisibleChildren(node.id);
+      }
+    });
+
+    // Update nodes with visibility and expansion state
+    const updatedNodes = allNodes.map(node => ({
+      ...node,
+      hidden: !visibleNodeIds.has(node.id),
+      data: {
+        ...node.data,
+        isExpanded: expandedNodes.has(node.id),
+        onClick: () => handleNodeClick(node.id),
+      },
+    }));
+
+    // Filter edges to only show connections between visible nodes
+    const visibleEdges = allEdges.filter(edge => 
+      visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
+    );
+
+    setNodes(updatedNodes);
+    setEdges(visibleEdges);
+  }, [expandedNodes, allNodes, allEdges, setNodes, setEdges, handleNodeClick]);
+
+  // Filter nodes based on search (override expansion)
+  const displayNodes = searchTerm 
+    ? nodes.map(node => ({
+        ...node,
+        hidden: !node.data.label.toLowerCase().includes(searchTerm.toLowerCase()),
+      }))
+    : nodes;
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
-  const categoryCount = nodes.filter(n => n.data.level === 1).length;
-  const itemCount = nodes.filter(n => n.data.level === 2).length;
+  const visibleCount = displayNodes.filter(n => !n.hidden).length;
+  const categoryCount = displayNodes.filter(n => !n.hidden && n.data.level === 1).length;
+  const itemCount = displayNodes.filter(n => !n.hidden && n.data.level === 2).length;
 
   return (
     <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : 'h-full w-full'}`}>
       <ReactFlow
-        nodes={filteredNodes}
+        nodes={displayNodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -299,10 +393,11 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
               />
             </div>
             <div className="text-xs text-muted-foreground space-y-0.5">
-              <div className="font-semibold">Hierarchical Structure:</div>
-              <div>• 1 Root (Order Management)</div>
-              <div>• {categoryCount} Categories (Level 1)</div>
-              <div>• {itemCount} Items (Level 2)</div>
+              <div className="font-semibold">Progressive Reveal:</div>
+              <div>• Click nodes to expand</div>
+              <div>• {visibleCount} nodes visible</div>
+              {categoryCount > 0 && <div>• {categoryCount} categories shown</div>}
+              {itemCount > 0 && <div>• {itemCount} items shown</div>}
             </div>
           </div>
         </Panel>
@@ -322,6 +417,10 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded bg-green-500/20 border border-green-500" />
               <span>Items (Level 2)</span>
+            </div>
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border">
+              <ChevronRight className="w-3 h-3" />
+              <span>Click to expand</span>
             </div>
           </div>
         </Panel>
