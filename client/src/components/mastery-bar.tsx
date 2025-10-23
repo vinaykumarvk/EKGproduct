@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Trophy } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface MasteryData {
   overallScore: number;
@@ -14,7 +19,7 @@ interface MasteryData {
 export function MasteryBar() {
   const { data: mastery, isLoading } = useQuery<MasteryData>({
     queryKey: ["/api/mastery"],
-    refetchInterval: false, // Only refetch manually after quiz completion
+    refetchInterval: false,
   });
 
   if (isLoading || !mastery) {
@@ -25,73 +30,79 @@ export function MasteryBar() {
 
   // Determine color based on score
   const getColor = (score: number) => {
-    if (score >= 76) return "from-green-600 to-emerald-500"; // Advanced/Expert
-    if (score >= 51) return "from-yellow-500 to-amber-400"; // Intermediate
-    if (score >= 26) return "from-orange-500 to-orange-400"; // Learning
-    return "from-red-600 to-red-500"; // Novice
+    if (score >= 76) return "from-green-600 to-emerald-500";
+    if (score >= 51) return "from-yellow-500 to-amber-400";
+    if (score >= 26) return "from-orange-500 to-orange-400";
+    return "from-red-600 to-red-500";
   };
 
-  // Determine background track color based on score
-  const getTrackColor = (score: number) => {
-    if (score >= 76) return "bg-green-900/20";
-    if (score >= 51) return "bg-yellow-900/20";
-    if (score >= 26) return "bg-orange-900/20";
-    return "bg-red-900/20";
+  const getTextColor = (score: number) => {
+    if (score >= 76) return "text-green-600 dark:text-green-400";
+    if (score >= 51) return "text-yellow-600 dark:text-yellow-400";
+    if (score >= 26) return "text-orange-600 dark:text-orange-400";
+    return "text-red-600 dark:text-red-400";
   };
 
   const gradient = getColor(overallScore);
-  const trackColor = getTrackColor(overallScore);
+  const textColor = getTextColor(overallScore);
 
   return (
-    <div 
-      className="w-full bg-card/50 border-b border-border/40 px-6 py-2.5"
-      data-testid="mastery-bar-container"
-    >
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <Trophy className="w-4 h-4 text-muted-foreground" />
-          <span className="text-xs font-medium text-foreground">
-            Wealth Knowledge Mastery: {overallScore}% - {currentLevel}
-          </span>
-        </div>
-        <button
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          data-testid="mastery-breakdown-button"
-          title="View detailed breakdown"
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div 
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border hover:border-primary/40 transition-all cursor-pointer group"
+          data-testid="mastery-bar-container"
         >
-          Details
-        </button>
-      </div>
-      
-      {/* Progress Bar */}
-      <div className="relative">
-        {/* Track */}
-        <div className={`h-2.5 ${trackColor} rounded-full overflow-hidden`}>
-          {/* Fill */}
-          <div
-            className={`h-full bg-gradient-to-r ${gradient} transition-all duration-700 ease-out`}
-            style={{ width: `${overallScore}%` }}
-            data-testid="mastery-progress-fill"
-          />
+          <Trophy className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+          
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold ${textColor}`}>
+                {overallScore}%
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {currentLevel}
+              </span>
+            </div>
+            
+            {/* Mini Progress Bar */}
+            <div className="w-24 h-1 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full bg-gradient-to-r ${gradient} transition-all duration-700 ease-out`}
+                style={{ width: `${overallScore}%` }}
+                data-testid="mastery-progress-fill"
+              />
+            </div>
+          </div>
         </div>
-        
-        {/* Milestone Markers */}
-        <div className="absolute top-0 left-0 right-0 h-2.5 flex justify-between pointer-events-none">
-          <div className="w-px bg-border/30 h-full" style={{ marginLeft: "25%" }} />
-          <div className="w-px bg-border/30 h-full" style={{ marginLeft: "0%" }} />
-          <div className="w-px bg-border/30 h-full" style={{ marginLeft: "0%" }} />
-          <div className="w-px bg-border/30 h-full" style={{ marginLeft: "-1px" }} />
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-xs">
+        <div className="space-y-2">
+          <div className="font-semibold text-sm">Wealth Knowledge Mastery</div>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Quiz Performance:</span>
+              <span className="font-medium">{mastery.quizPerformanceScore}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Topic Coverage:</span>
+              <span className="font-medium">{mastery.topicCoverageScore}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Retention:</span>
+              <span className="font-medium">{mastery.retentionScore}%</span>
+            </div>
+            <div className="pt-1 border-t border-border/50 flex justify-between">
+              <span className="text-muted-foreground">Topics Mastered:</span>
+              <span className="font-medium">{mastery.topicsMastered}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Quizzes Taken:</span>
+              <span className="font-medium">{mastery.totalQuizzesTaken}</span>
+            </div>
+          </div>
         </div>
-      </div>
-      
-      {/* Labels */}
-      <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-        <span>Novice</span>
-        <span>Learning</span>
-        <span>Intermediate</span>
-        <span>Advanced</span>
-        <span>Expert</span>
-      </div>
-    </div>
+      </TooltipContent>
+    </Tooltip>
   );
 }

@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/theme-provider";
+import { MasteryBar } from "@/components/mastery-bar";
 
 interface TopHeaderProps {
   questionsAsked?: number;
@@ -71,8 +72,10 @@ export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch }
         </form>
       </div>
 
-      {/* Right: Theme Toggle and User Menu */}
-      <div className="flex items-center gap-2">
+      {/* Right: Mastery Bar, Theme Toggle and User Menu */}
+      <div className="flex items-center gap-3">
+        <MasteryBar />
+        
         <Button
           variant="ghost"
           size="icon"
