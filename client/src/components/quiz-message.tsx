@@ -1,16 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Brain, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { QuizQuestion } from "@/types/quiz";
 
 interface QuizMessageProps {
   questions: QuizQuestion[];
+  threadId: number;
 }
 
-export function QuizMessage({ questions }: QuizMessageProps) {
+export function QuizMessage({ questions, threadId }: QuizMessageProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [revealedAnswers, setRevealedAnswers] = useState<Record<number, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const { toast } = useToast();
+
+  const submitQuizMutation = useMutation({
+    mutationFn: async (results: any[]) => {
+      const response = await apiRequest("POST", "/api/quiz/submit", {
+        threadId,
+        results,
+      });
+      return await response.json();
+    },
+    onSuccess: (data: any) => {
+      // Invalidate mastery query to trigger refresh
+      queryClient.invalidateQueries({ queryKey: ["/api/mastery"] });
+      
+      toast({
+        title: "🎉 Quiz Results Saved!",
+        description: `Your mastery increased to ${data.mastery.overallScore}% (${data.mastery.currentLevel})`,
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Failed to submit quiz:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to save results",
+        description: "Your quiz results couldn't be saved. Please try again.",
+      });
+    },
+  });
 
   const handleAnswerSelect = (questionIndex: number, answer: string) => {
     setSelectedAnswers(prev => ({
@@ -32,6 +65,21 @@ export function QuizMessage({ questions }: QuizMessageProps) {
 
   const totalAnswered = Object.keys(revealedAnswers).length;
   const allAnswered = totalAnswered === questions.length;
+
+  // Submit quiz results when all questions are answered
+  useEffect(() => {
+    if (allAnswered && !submitted) {
+      const results = questions.map((question, index) => ({
+        questionText: question.question,
+        userAnswer: selectedAnswers[index],
+        correctAnswer: question.correctAnswer,
+        isCorrect: selectedAnswers[index] === question.correctAnswer,
+      }));
+
+      submitQuizMutation.mutate(results);
+      setSubmitted(true);
+    }
+  }, [allAnswered, submitted, questions, selectedAnswers]);
 
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
