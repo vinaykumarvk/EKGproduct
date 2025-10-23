@@ -2,8 +2,15 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { querySchema, insertConversationSchema } from "@shared/schema";
 import { storage } from "./storage";
+import OpenAI from "openai";
 
 const EKG_API_URL = "https://ekg-service-47249889063.europe-west6.run.app";
+
+// Initialize OpenAI client for quiz generation using Replit AI Integrations
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
 
 // Helper function to clean answer text by removing formatting noise
 function cleanAnswer(markdown: string): string {
@@ -225,7 +232,7 @@ User's Question: ${validatedData.question}`;
     }
   });
 
-  // Generate flash quiz from conversation
+  // Generate flash quiz from conversation using OpenAI
   app.post("/api/generate-quiz", async (req, res) => {
     try {
       const { threadId } = req.body;
@@ -255,18 +262,8 @@ User's Question: ${validatedData.question}`;
         }
       }
 
-      // Create quiz generation prompt for EKG service
-      const quizPrompt = `Based on the following conversation about wealth management, generate 3-5 multiple-choice quiz questions to test understanding of the key concepts discussed.
-
-CONVERSATION HISTORY:
-${conversationContext.map((ctx, i) => `Q${i + 1}: ${ctx.question}\nA${i + 1}: ${ctx.answer}`).join('\n\n')}
-
-INSTRUCTIONS:
-Generate quiz questions that:
-- Test understanding of key concepts from the conversation
-- Have 4 answer options (A, B, C, D)
-- Include the correct answer
-- Include a brief explanation (2-3 sentences) of why the answer is correct
+      // Create quiz generation prompt for OpenAI
+      const systemPrompt = `You are a quiz generation expert. Your task is to create engaging, accurate multiple-choice quiz questions based on conversation context. Generate 3-5 questions that test understanding of key concepts discussed.
 
 Return your response as valid JSON in this EXACT format (no additional text before or after):
 {
@@ -285,63 +282,39 @@ Return your response as valid JSON in this EXACT format (no additional text befo
   ]
 }`;
 
-      // Call EKG service to generate quiz
-      const ekgResponse = await fetch(`${EKG_API_URL}/v1/answer`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          question: quizPrompt,
-          domain: "wealth_management",
-          params: {
-            _mode: "concise"
-          }
-        }),
+      const userPrompt = `Based on the following conversation about wealth management, generate 3-5 multiple-choice quiz questions to test understanding of the key concepts discussed.
+
+CONVERSATION HISTORY:
+${conversationContext.map((ctx, i) => `Q${i + 1}: ${ctx.question}\nA${i + 1}: ${ctx.answer}`).join('\n\n')}
+
+Generate quiz questions that:
+- Test understanding of key concepts from the conversation
+- Have 4 answer options (A, B, C, D)
+- Include the correct answer
+- Include a brief explanation (2-3 sentences) of why the answer is correct`;
+
+      // Call OpenAI to generate quiz
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" }
       });
 
-      if (!ekgResponse.ok) {
-        const errorText = await ekgResponse.text();
-        console.error("EKG API error:", errorText);
-        return res.status(500).json({ error: "Quiz generation service unavailable" });
-      }
-
-      const ekgResult = await ekgResponse.json();
-      console.log("EKG Response keys:", Object.keys(ekgResult));
-      
-      // Handle both 'answer' and 'markdown' fields (same as regular query endpoint)
-      const quizData = ekgResult.markdown || ekgResult.answer;
+      const quizData = completion.choices[0].message.content;
       
       if (!quizData) {
-        console.error("No quiz data found in EKG response. Available keys:", Object.keys(ekgResult));
-        console.error("Full response:", JSON.stringify(ekgResult, null, 2).substring(0, 1000));
-        return res.status(500).json({ error: "Failed to generate quiz - no response from service" });
+        console.error("No quiz data in OpenAI response");
+        return res.status(500).json({ error: "Failed to generate quiz - no response from AI" });
       }
-      
-      console.log("Quiz data received, length:", quizData.length);
 
-      // Parse the quiz data with defensive handling for backtick-wrapped JSON
+      // Parse the quiz data
       let parsedQuiz;
       try {
-        // Remove potential markdown code block wrappers and extract JSON
-        let cleanedData = quizData.trim();
-        
-        // Handle various markdown formats
-        if (cleanedData.includes('```json')) {
-          const match = cleanedData.match(/```json\s*([\s\S]*?)\s*```/);
-          cleanedData = match ? match[1] : cleanedData.replace(/```json\s*/, '').replace(/\s*```/, '');
-        } else if (cleanedData.includes('```')) {
-          const match = cleanedData.match(/```\s*([\s\S]*?)\s*```/);
-          cleanedData = match ? match[1] : cleanedData.replace(/```\s*/, '').replace(/\s*```/, '');
-        }
-        
-        // Remove any leading/trailing non-JSON text
-        const jsonMatch = cleanedData.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          cleanedData = jsonMatch[0];
-        }
-        
-        parsedQuiz = JSON.parse(cleanedData);
+        parsedQuiz = JSON.parse(quizData);
         
         // Validate structure
         if (!parsedQuiz.questions || !Array.isArray(parsedQuiz.questions) || parsedQuiz.questions.length === 0) {

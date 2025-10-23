@@ -5,15 +5,21 @@ The WealthForce Knowledge Agent is an enterprise-grade conversational AI chatbot
 
 ## Recent Changes
 
+### October 23, 2025
+- **OpenAI Integration for Flash Quiz**: Migrated quiz generation from EKG service to OpenAI GPT-4o-mini:
+  - Uses Replit AI Integrations (no separate API key required, billed to Replit credits)
+  - GPT-4o-mini model generates high-quality, context-aware quiz questions
+  - JSON mode ensures reliable structured output format
+  - Resolves previous issues with EKG service echoing prompts instead of generating content
+  - Backend imports OpenAI client with Replit-managed credentials (AI_INTEGRATIONS_OPENAI_API_KEY, AI_INTEGRATIONS_OPENAI_BASE_URL)
+
 ### October 22, 2025
 - **Flash Quiz Feature**: Implemented inline quiz generation from conversation context:
   - "Quiz Me" button (⚡ icon) appears in input area after 1 Q&A exchange (2+ messages)
-  - Uses the same EKG REST Service to generate 3-5 multiple-choice questions based on conversation history
-  - No additional API keys required - fully integrated with existing knowledge service
+  - Generates 3-5 multiple-choice questions based on conversation history
   - Questions appear inline in chat thread as QuizMessage component
   - Interactive UI with instant feedback (✅ Correct / ❌ Incorrect) and explanations
   - Score display when all questions are answered
-  - Defensive JSON parsing handles markdown-wrapped responses from EKG service
   - Shared types in `client/src/types/quiz.ts` for type safety
   - Backend endpoint `/api/generate-quiz` with error handling and validation
   - Removed "Press Enter to send" helper text for cleaner input area alignment
