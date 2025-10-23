@@ -6,6 +6,7 @@ import ReactFlow, {
   Background,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   MiniMap,
   Panel,
   NodeProps,
@@ -135,6 +136,27 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
 
   return { nodes: layoutedNodes, edges };
 };
+
+// Component to handle viewport centering (must be inside ReactFlow)
+function ViewportCenterer({ nodes }: { nodes: Node[] }) {
+  const { setCenter } = useReactFlow();
+  const prevNodesRef = useRef<Node[]>([]);
+
+  useEffect(() => {
+    // Only center if nodes have changed
+    if (nodes.length > 0 && nodes !== prevNodesRef.current) {
+      const rootNode = nodes.find(n => n.id === 'root' && !n.hidden);
+      if (rootNode) {
+        setTimeout(() => {
+          setCenter(rootNode.position.x + 100, rootNode.position.y + 50, { zoom: 1, duration: 300 });
+        }, 50);
+      }
+      prevNodesRef.current = nodes;
+    }
+  }, [nodes, setCenter]);
+
+  return null;
+}
 
 export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -478,6 +500,7 @@ export function KnowledgeMindmap({ knowledgeGraphData }: KnowledgeMindmapProps) 
       >
         <Background color="#94a3b8" gap={16} />
         <Controls />
+        <ViewportCenterer nodes={displayNodes} />
         <MiniMap
           nodeColor={(node) => {
             const level = node.data.level;
