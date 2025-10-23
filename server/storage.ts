@@ -3,6 +3,9 @@ import {
   conversations, 
   threads,
   messages,
+  quizAttempts,
+  quizResponses,
+  userMastery,
   type User, 
   type InsertUser, 
   type Conversation, 
@@ -10,7 +13,13 @@ import {
   type Thread,
   type InsertThread,
   type Message,
-  type InsertMessage
+  type InsertMessage,
+  type QuizAttempt,
+  type InsertQuizAttempt,
+  type QuizResponse,
+  type InsertQuizResponse,
+  type UserMastery,
+  type InsertUserMastery
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
@@ -33,6 +42,16 @@ export interface IStorage {
   createMessage(message: InsertMessage): Promise<Message>;
   getLastAssistantMessage(threadId: number): Promise<Message | undefined>;
   getRecentMessagePairs(threadId: number, pairCount: number): Promise<Message[]>;
+  
+  // Quiz tracking methods
+  createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
+  createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
+  getQuizAttempts(limit?: number): Promise<QuizAttempt[]>;
+  getRecentQuizzes(count: number): Promise<QuizAttempt[]>;
+  
+  // User mastery methods
+  getUserMastery(): Promise<UserMastery | undefined>;
+  updateUserMastery(mastery: InsertUserMastery): Promise<UserMastery>;
   
   // Old conversation methods (kept for backward compatibility)
   getConversations(): Promise<Conversation[]>;
@@ -164,6 +183,72 @@ export class DatabaseStorage implements IStorage {
 
   async deleteConversation(id: number): Promise<void> {
     await db.delete(conversations).where(eq(conversations.id, id));
+  }
+
+  // Quiz tracking methods
+  async createQuizAttempt(insertAttempt: InsertQuizAttempt): Promise<QuizAttempt> {
+    const [attempt] = await db
+      .insert(quizAttempts)
+      .values(insertAttempt)
+      .returning();
+    return attempt;
+  }
+
+  async createQuizResponse(insertResponse: InsertQuizResponse): Promise<QuizResponse> {
+    const [response] = await db
+      .insert(quizResponses)
+      .values(insertResponse)
+      .returning();
+    return response;
+  }
+
+  async getQuizAttempts(limit?: number): Promise<QuizAttempt[]> {
+    const query = db
+      .select()
+      .from(quizAttempts)
+      .orderBy(desc(quizAttempts.createdAt));
+    
+    if (limit) {
+      return await query.limit(limit);
+    }
+    return await query;
+  }
+
+  async getRecentQuizzes(count: number): Promise<QuizAttempt[]> {
+    return await db
+      .select()
+      .from(quizAttempts)
+      .orderBy(desc(quizAttempts.createdAt))
+      .limit(count);
+  }
+
+  // User mastery methods
+  async getUserMastery(): Promise<UserMastery | undefined> {
+    // For single-user system, get the first (and only) mastery record
+    const [mastery] = await db.select().from(userMastery).limit(1);
+    return mastery || undefined;
+  }
+
+  async updateUserMastery(insertMastery: InsertUserMastery): Promise<UserMastery> {
+    // Check if mastery record exists
+    const existing = await this.getUserMastery();
+    
+    if (existing) {
+      // Update existing record
+      const [updated] = await db
+        .update(userMastery)
+        .set({ ...insertMastery, updatedAt: new Date() })
+        .where(eq(userMastery.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      // Create new record
+      const [created] = await db
+        .insert(userMastery)
+        .values(insertMastery)
+        .returning();
+      return created;
+    }
   }
 }
 
