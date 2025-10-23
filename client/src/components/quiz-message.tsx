@@ -27,6 +27,9 @@ export function QuizMessage({ questions, threadId }: QuizMessageProps) {
       return await response.json();
     },
     onSuccess: (data: any) => {
+      // Mark as successfully submitted only after API confirms success
+      setSubmitted(true);
+      
       // Invalidate mastery query to trigger refresh
       queryClient.invalidateQueries({ queryKey: ["/api/mastery"] });
       
@@ -37,6 +40,10 @@ export function QuizMessage({ questions, threadId }: QuizMessageProps) {
     },
     onError: (error: Error) => {
       console.error("Failed to submit quiz:", error);
+      
+      // Reset submitted flag to allow retry
+      setSubmitted(false);
+      
       toast({
         variant: "destructive",
         title: "Failed to save results",
@@ -68,7 +75,7 @@ export function QuizMessage({ questions, threadId }: QuizMessageProps) {
 
   // Submit quiz results when all questions are answered
   useEffect(() => {
-    if (allAnswered && !submitted) {
+    if (allAnswered && !submitted && !submitQuizMutation.isPending) {
       const results = questions.map((question, index) => ({
         questionText: question.question,
         userAnswer: selectedAnswers[index],
@@ -77,9 +84,8 @@ export function QuizMessage({ questions, threadId }: QuizMessageProps) {
       }));
 
       submitQuizMutation.mutate(results);
-      setSubmitted(true);
     }
-  }, [allAnswered, submitted, questions, selectedAnswers]);
+  }, [allAnswered, submitted, questions, selectedAnswers, submitQuizMutation]);
 
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">

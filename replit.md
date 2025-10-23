@@ -6,6 +6,17 @@ The WealthForce Knowledge Agent is an enterprise-grade conversational AI chatbot
 ## Recent Changes
 
 ### October 23, 2025
+- **Wealth Mastery Tracking System**: Comprehensive learning analytics with visual progress indicator:
+  - **Database Schema**: Added three new tables for quiz tracking (quiz_attempts, quiz_responses, user_mastery)
+  - **Mastery Calculation**: Weighted formula combining quiz performance (50%), topic coverage (30%), and retention (20%)
+  - **Mastery Bar Component**: Full-width progress bar displaying 0-100% mastery with color-coded gradient (red→orange→yellow→green)
+  - **Five Proficiency Levels**: Novice (0-25%), Learning (26-50%), Intermediate (51-75%), Advanced (76-90%), Expert (91-100%)
+  - **Real-time Updates**: Quiz completion automatically updates mastery score and animates progress bar
+  - **Backend API**: POST /api/quiz/submit saves quiz results and returns updated mastery, GET /api/mastery retrieves current score
+  - **Automatic Submission**: Quiz results saved to database when all questions are answered
+  - **Toast Notifications**: Shows mastery updates after quiz completion (e.g., "Your mastery increased to 35% (Learning)")
+  - **Visual Feedback**: Progress bar with milestone markers and level labels across full width below header
+  - **Storage Integration**: New storage methods (createQuizAttempt, createQuizResponse, getUserMastery, updateUserMastery)
 - **OpenAI Integration for Flash Quiz**: Migrated quiz generation from EKG service to OpenAI GPT-4o-mini:
   - Uses Replit AI Integrations (no separate API key required, billed to Replit credits)
   - GPT-4o-mini model generates high-quality, context-aware quiz questions
