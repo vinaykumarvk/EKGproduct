@@ -37,6 +37,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Serve attached assets FIRST (before routes and Vite)
+  // This ensures the static files are served correctly
+  app.use("/attached_assets", express.static("attached_assets"));
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
