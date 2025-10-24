@@ -9,14 +9,12 @@ import ReactFlow, {
   MiniMap,
   Panel,
   NodeProps,
-  Handle,
-  Position,
 } from "reactflow";
 import * as d3 from "d3-force";
 import "reactflow/dist/style.css";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, ZoomIn, ZoomOut, Maximize2, X, BookOpen, FileText, Trophy } from "lucide-react";
+import { Search, Maximize2, X, BookOpen, FileText, Trophy, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,13 +24,15 @@ interface TopicBubble {
   id: string;
   name: string;
   category: string;
-  size: number; // evidence count or importance
+  size: number;
   type: "category" | "topic";
   description?: string;
   keyPoints?: string[];
   evidenceCount?: number;
   relatedQuizzes?: number;
   connectedTopics?: string[];
+  subtopics?: string[]; // IDs of subtopic nodes
+  originalNodeData?: any; // Store original knowledge graph node
 }
 
 interface SimplifiedTopicNetworkProps {
@@ -71,7 +71,6 @@ function TopicBubbleNode({ data }: NodeProps) {
     if (type === "category") {
       return { width: "120px", height: "120px", fontSize: "13px" };
     } else {
-      // Scale based on evidence count
       const scaledSize = Math.max(60, Math.min(90, 60 + size / 10));
       return { width: `${scaledSize}px`, height: `${scaledSize}px`, fontSize: "11px" };
     }
@@ -104,9 +103,22 @@ const nodeTypes = {
   bubble: TopicBubbleNode,
 };
 
-// Detail panel component
-function TopicDetailPanel({ topic, onClose }: { topic: TopicBubble | null; onClose: () => void }) {
+// Detail panel component with subtopics
+function TopicDetailPanel({ 
+  topic, 
+  onClose, 
+  allTopics,
+  onTopicClick 
+}: { 
+  topic: TopicBubble | null; 
+  onClose: () => void;
+  allTopics: TopicBubble[];
+  onTopicClick: (topicId: string) => void;
+}) {
   if (!topic) return null;
+
+  const connectedTopics = allTopics.filter(t => topic.connectedTopics?.includes(t.id));
+  const subtopicsList = allTopics.filter(t => topic.subtopics?.includes(t.id));
 
   return (
     <Card className="w-[400px] h-full flex flex-col shadow-2xl border-2">
@@ -120,7 +132,7 @@ function TopicDetailPanel({ topic, onClose }: { topic: TopicBubble | null; onClo
             <X className="w-4 h-4" />
           </Button>
         </div>
-        <div className="flex gap-2 mt-3">
+        <div className="flex gap-2 mt-3 flex-wrap">
           {topic.evidenceCount && (
             <Badge variant="secondary" className="text-xs">
               <FileText className="w-3 h-3 mr-1" />
@@ -133,12 +145,18 @@ function TopicDetailPanel({ topic, onClose }: { topic: TopicBubble | null; onClo
               {topic.relatedQuizzes} quizzes
             </Badge>
           )}
+          {subtopicsList.length > 0 && (
+            <Badge variant="outline" className="text-xs">
+              {subtopicsList.length} subtopics
+            </Badge>
+          )}
         </div>
       </CardHeader>
       
       <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
         <TabsList className="mx-6 mb-2">
           <TabsTrigger value="overview" className="text-xs" data-testid="tab-overview">Overview</TabsTrigger>
+          <TabsTrigger value="subtopics" className="text-xs" data-testid="tab-subtopics">Subtopics</TabsTrigger>
           <TabsTrigger value="learn" className="text-xs" data-testid="tab-learn">Learn</TabsTrigger>
           <TabsTrigger value="practice" className="text-xs" data-testid="tab-practice">Practice</TabsTrigger>
         </TabsList>
@@ -166,18 +184,56 @@ function TopicDetailPanel({ topic, onClose }: { topic: TopicBubble | null; onClo
               </div>
             )}
             
-            {topic.connectedTopics && topic.connectedTopics.length > 0 && (
+            {connectedTopics.length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold mb-2">Related Topics</h4>
                 <div className="flex flex-wrap gap-2">
-                  {topic.connectedTopics.slice(0, 6).map((connectedId) => (
-                    <Badge key={connectedId} variant="outline" className="text-xs">
-                      {connectedId}
+                  {connectedTopics.slice(0, 8).map((connectedTopic) => (
+                    <Badge 
+                      key={connectedTopic.id} 
+                      variant="outline" 
+                      className="text-xs cursor-pointer hover:bg-accent"
+                      onClick={() => onTopicClick(connectedTopic.id)}
+                      data-testid={`badge-related-${connectedTopic.id}`}
+                    >
+                      {connectedTopic.name.length > 20 ? connectedTopic.name.substring(0, 17) + "..." : connectedTopic.name}
                     </Badge>
                   ))}
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="subtopics" className="mt-0 space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold mb-3">Explore Deeper</h4>
+              {subtopicsList.length > 0 ? (
+                <div className="space-y-2">
+                  {subtopicsList.map((subtopic) => (
+                    <div
+                      key={subtopic.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-accent cursor-pointer transition-colors"
+                      onClick={() => onTopicClick(subtopic.id)}
+                      data-testid={`subtopic-${subtopic.id}`}
+                    >
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">{subtopic.name}</div>
+                        {subtopic.evidenceCount && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {subtopic.evidenceCount} evidence sources
+                          </div>
+                        )}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground bg-muted/30 p-4 rounded-lg text-center">
+                  This is a fundamental concept with no subtopics. Explore related topics from the Overview tab.
+                </div>
+              )}
+            </div>
           </TabsContent>
           
           <TabsContent value="learn" className="mt-0 space-y-4">
@@ -186,12 +242,27 @@ function TopicDetailPanel({ topic, onClose }: { topic: TopicBubble | null; onClo
               <p className="text-sm text-muted-foreground mb-3">
                 {topic.description || `${topic.name} is a critical component in wealth management systems.`}
               </p>
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <p className="text-xs text-muted-foreground italic">
-                  Detailed learning content, examples, and case studies would appear here.
-                  This could include step-by-step explanations, visual diagrams, and real-world scenarios.
-                </p>
-              </div>
+              
+              {topic.originalNodeData && (
+                <div className="space-y-3">
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <h5 className="text-xs font-semibold mb-2">Technical Details</h5>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <div><span className="font-medium">Type:</span> {topic.originalNodeData.type || 'N/A'}</div>
+                      <div><span className="font-medium">ID:</span> {topic.originalNodeData.id || topic.id}</div>
+                      {topic.originalNodeData.aliases && topic.originalNodeData.aliases.length > 0 && (
+                        <div><span className="font-medium">Also known as:</span> {topic.originalNodeData.aliases.slice(0, 3).filter(Boolean).join(", ") || "N/A"}</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-muted/30 p-4 rounded-lg">
+                    <p className="text-xs text-muted-foreground italic">
+                      Educational content, case studies, and detailed explanations would be displayed here based on the knowledge graph evidence and documentation.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
           
@@ -232,9 +303,12 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
   const [selectedTopic, setSelectedTopic] = useState<TopicBubble | null>(null);
   const topicBubblesRef = useRef<TopicBubble[]>([]);
 
-  // Build simplified topic structure from knowledge graph
+  // Build simplified topic structure with real connections
   const topicBubbles = useMemo(() => {
-    if (!knowledgeGraphData?.nodes) return [];
+    if (!knowledgeGraphData?.nodes || !knowledgeGraphData?.edges) return [];
+
+    const allNodes = knowledgeGraphData.nodes;
+    const allEdges = knowledgeGraphData.edges;
 
     // Categorization function
     const categorizeNode = (node: any): string => {
@@ -268,7 +342,7 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
 
     // Group nodes by category
     const categories: Record<string, any[]> = {};
-    knowledgeGraphData.nodes.forEach((node: any) => {
+    allNodes.forEach((node: any) => {
       const category = categorizeNode(node);
       if (!categories[category]) {
         categories[category] = [];
@@ -280,12 +354,14 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
 
     const bubbles: TopicBubble[] = [];
     const categoryNames = Object.keys(categories);
+    const nodeIdToBubbleId = new Map<string, string>();
 
     // Create category bubbles
     categoryNames.forEach((category) => {
       const totalEvidence = categories[category].reduce((sum, n) => sum + (n.evidence_count || 0), 0);
+      const catBubbleId = `cat-${category.toLowerCase().replace(/\s+/g, "-")}`;
       bubbles.push({
-        id: `cat-${category.toLowerCase().replace(/\s+/g, "-")}`,
+        id: catBubbleId,
         name: category,
         category,
         size: totalEvidence,
@@ -293,41 +369,146 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
         description: `Explore ${categories[category].length} concepts related to ${category.toLowerCase()}`,
         evidenceCount: totalEvidence,
         relatedQuizzes: Math.floor(categories[category].length / 2),
+        connectedTopics: [],
+        subtopics: [],
       });
     });
 
-    // Create topic bubbles (top 3-5 from each category)
+    // Create topic bubbles (top 4 from each category)
     categoryNames.forEach((category) => {
       const topNodes = categories[category]
         .sort((a, b) => (b.evidence_count || 0) - (a.evidence_count || 0))
         .slice(0, 4);
 
       topNodes.forEach((node, idx) => {
+        const topicId = `topic-${category.toLowerCase().replace(/\s+/g, "-")}-${idx}`;
+        const catBubbleId = `cat-${category.toLowerCase().replace(/\s+/g, "-")}`;
+        
+        // Map original node ID to this bubble ID
+        nodeIdToBubbleId.set(node.id, topicId);
+        
         bubbles.push({
-          id: `topic-${category.toLowerCase().replace(/\s+/g, "-")}-${idx}`,
+          id: topicId,
           name: node.name.length > 30 ? node.name.substring(0, 27) + "..." : node.name,
           category,
           size: node.evidence_count || 10,
           type: "topic",
           description: `Learn about ${node.name} and how it fits into ${category}`,
-          keyPoints: [`Type: ${node.type}`, `Evidence sources: ${node.evidence_count || 0}`, "Core concept in wealth management"],
+          keyPoints: [
+            `Type: ${node.type}`, 
+            `Evidence sources: ${node.evidence_count || 0}`,
+            "Core concept in wealth management"
+          ],
           evidenceCount: node.evidence_count || 0,
           relatedQuizzes: Math.floor(Math.random() * 5) + 1,
           connectedTopics: [],
+          subtopics: [],
+          originalNodeData: node,
+        });
+
+        // Add to category's subtopics
+        const catBubble = bubbles.find(b => b.id === catBubbleId);
+        if (catBubble && !catBubble.subtopics?.includes(topicId)) {
+          catBubble.subtopics?.push(topicId);
+        }
+      });
+    });
+
+    // Add subtopics for each topic based on connected nodes in knowledge graph
+    categoryNames.forEach((category) => {
+      const topNodes = categories[category]
+        .sort((a, b) => (b.evidence_count || 0) - (a.evidence_count || 0))
+        .slice(0, 4);
+
+      topNodes.forEach((node, idx) => {
+        const topicId = `topic-${category.toLowerCase().replace(/\s+/g, "-")}-${idx}`;
+        const topicBubble = bubbles.find(b => b.id === topicId);
+        if (!topicBubble) return;
+
+        // Find all nodes connected to this node in the knowledge graph
+        const connectedNodeIds = new Set<string>();
+        allEdges.forEach((edge: any) => {
+          if (edge.source_id === node.id) {
+            connectedNodeIds.add(edge.target_id);
+          } else if (edge.target_id === node.id) {
+            connectedNodeIds.add(edge.source_id);
+          }
+        });
+
+        // Find the actual nodes for these IDs
+        const connectedNodes = Array.from(connectedNodeIds)
+          .map(id => allNodes.find((n: any) => n.id === id))
+          .filter(Boolean)
+          .sort((a: any, b: any) => (b.evidence_count || 0) - (a.evidence_count || 0))
+          .slice(0, 3); // Top 3 connected nodes as subtopics
+
+        // Create subtopic entries for these connected nodes
+        connectedNodes.forEach((connectedNode: any, subIdx) => {
+          const subtopicId = `subtopic-${topicId}-${subIdx}`;
+          
+          // Only create if not already a bubble
+          if (!nodeIdToBubbleId.has(connectedNode.id)) {
+            nodeIdToBubbleId.set(connectedNode.id, subtopicId);
+            
+            bubbles.push({
+              id: subtopicId,
+              name: connectedNode.name.length > 30 ? connectedNode.name.substring(0, 27) + "..." : connectedNode.name,
+              category,
+              size: connectedNode.evidence_count || 5,
+              type: "topic",
+              description: `Related concept: ${connectedNode.name}`,
+              keyPoints: [
+                `Type: ${connectedNode.type}`,
+                `Evidence sources: ${connectedNode.evidence_count || 0}`,
+                `Connected to ${node.name}`
+              ],
+              evidenceCount: connectedNode.evidence_count || 0,
+              relatedQuizzes: Math.floor(Math.random() * 3) + 1,
+              connectedTopics: [],
+              subtopics: [],
+              originalNodeData: connectedNode,
+            });
+          }
+          
+          // Add to parent topic's subtopics
+          const existingBubbleId = nodeIdToBubbleId.get(connectedNode.id);
+          if (existingBubbleId && !topicBubble.subtopics?.includes(existingBubbleId)) {
+            topicBubble.subtopics?.push(existingBubbleId);
+          }
         });
       });
+    });
+
+    // Now add real connections from knowledge graph edges
+    allEdges.forEach((edge: any) => {
+      const sourceBubbleId = nodeIdToBubbleId.get(edge.source_id);
+      const targetBubbleId = nodeIdToBubbleId.get(edge.target_id);
+      
+      if (sourceBubbleId && targetBubbleId && sourceBubbleId !== targetBubbleId) {
+        const sourceBubble = bubbles.find(b => b.id === sourceBubbleId);
+        const targetBubble = bubbles.find(b => b.id === targetBubbleId);
+        
+        if (sourceBubble && targetBubble) {
+          // Add bidirectional connections
+          if (!sourceBubble.connectedTopics?.includes(targetBubbleId)) {
+            sourceBubble.connectedTopics?.push(targetBubbleId);
+          }
+          if (!targetBubble.connectedTopics?.includes(sourceBubbleId)) {
+            targetBubble.connectedTopics?.push(sourceBubbleId);
+          }
+        }
+      }
     });
 
     return bubbles;
   }, [knowledgeGraphData]);
 
-  // Build graph with force-directed layout
+  // Build graph with force-directed layout and real connections
   useEffect(() => {
     if (topicBubbles.length === 0) return;
 
     topicBubblesRef.current = topicBubbles;
 
-    // Create simulation nodes
     interface SimNode extends d3.SimulationNodeDatum {
       id: string;
       size: number;
@@ -340,38 +521,40 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
       type: b.type,
     }));
 
-    // Create edges between topics in same category
-    const simEdges: { source: string; target: string; category: string }[] = [];
+    // Create edges from real connections
+    const simEdges: { source: string; target: string; type: string }[] = [];
     
-    topicBubbles.forEach((bubble, i) => {
-      if (bubble.type === "category") {
-        // Connect category to its topics
-        topicBubbles.forEach((other, j) => {
-          if (i !== j && other.type === "topic" && other.category === bubble.name) {
-            simEdges.push({ source: bubble.id, target: other.id, category: bubble.category });
+    // Category to topic connections
+    topicBubbles.forEach((bubble) => {
+      if (bubble.type === "category" && bubble.subtopics) {
+        bubble.subtopics.forEach((subtopicId) => {
+          simEdges.push({ source: bubble.id, target: subtopicId, type: "hierarchy" });
+        });
+      }
+    });
+
+    // Topic to topic connections (real relationships)
+    topicBubbles.forEach((bubble) => {
+      if (bubble.type === "topic" && bubble.connectedTopics) {
+        bubble.connectedTopics.forEach((connectedId) => {
+          // Avoid duplicates
+          if (!simEdges.some(e => 
+            (e.source === bubble.id && e.target === connectedId) ||
+            (e.source === connectedId && e.target === bubble.id)
+          )) {
+            simEdges.push({ source: bubble.id, target: connectedId, type: "relationship" });
           }
         });
       }
     });
 
-    // Also connect some topics across categories for a more interconnected look
-    const categoryBubbles = topicBubbles.filter(b => b.type === "category");
-    for (let i = 0; i < categoryBubbles.length - 1; i++) {
-      simEdges.push({
-        source: categoryBubbles[i].id,
-        target: categoryBubbles[i + 1].id,
-        category: "cross",
-      });
-    }
-
     // Run force simulation
     const simulation = d3.forceSimulation(simNodes)
-      .force("link", d3.forceLink(simEdges).id((d: any) => d.id).distance(150).strength(0.5))
-      .force("charge", d3.forceManyBody().strength(-800))
+      .force("link", d3.forceLink(simEdges).id((d: any) => d.id).distance(120).strength(0.3))
+      .force("charge", d3.forceManyBody().strength(-600))
       .force("center", d3.forceCenter(400, 300))
       .force("collision", d3.forceCollide().radius((d: any) => d.type === "category" ? 80 : 50));
 
-    // Run simulation
     for (let i = 0; i < 300; i++) {
       simulation.tick();
     }
@@ -397,7 +580,7 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
 
     // Create React Flow edges
     const flowEdges: Edge[] = simEdges.map((edge, idx) => {
-      const isCrossCategory = edge.category === "cross";
+      const isRelationship = edge.type === "relationship";
       return {
         id: `edge-${edge.source}-${edge.target}-${idx}`,
         source: edge.source as string,
@@ -405,9 +588,9 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
         type: "straight",
         animated: false,
         style: {
-          stroke: isCrossCategory ? "#666" : "#999",
-          strokeWidth: isCrossCategory ? 1 : 2,
-          opacity: isCrossCategory ? 0.3 : 0.6,
+          stroke: isRelationship ? "#10b981" : "#999",
+          strokeWidth: isRelationship ? 2 : 1.5,
+          opacity: isRelationship ? 0.7 : 0.5,
         },
       };
     });
@@ -424,16 +607,22 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
     }
   }, []);
 
+  // Handle topic click from detail panel
+  const handleTopicClickFromPanel = useCallback((topicId: string) => {
+    const topic = topicBubblesRef.current.find(t => t.id === topicId);
+    if (topic) {
+      setSelectedTopic(topic);
+    }
+  }, []);
+
   // Handle search
   const handleSearch = useCallback((term: string) => {
     setSearchTerm(term);
     if (!term.trim()) {
-      // Show all nodes
       setNodes(nodes => nodes.map(n => ({ ...n, hidden: false })));
       return;
     }
 
-    // Filter nodes by search term
     setNodes(nodes => nodes.map(node => ({
       ...node,
       hidden: !node.data.label.toLowerCase().includes(term.toLowerCase()),
@@ -441,6 +630,7 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
   }, [setNodes]);
 
   const visibleNodeCount = nodes.filter(n => !n.hidden).length;
+  const totalConnections = topicBubbles.reduce((sum, b) => sum + (b.connectedTopics?.length || 0), 0) / 2;
 
   return (
     <div className="relative w-full h-full flex">
@@ -492,7 +682,8 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
             
             <div className="text-xs text-muted-foreground">
               <div>Showing {visibleNodeCount} of {topicBubbles.length} topics</div>
-              <div className="mt-1 text-[10px]">Click bubbles to learn more</div>
+              <div className="mt-1">{Math.round(totalConnections)} real connections</div>
+              <div className="mt-1 text-[10px]">Click bubbles to explore & learn</div>
             </div>
           </Panel>
 
@@ -514,6 +705,8 @@ export function SimplifiedTopicNetwork({ knowledgeGraphData }: SimplifiedTopicNe
           <TopicDetailPanel
             topic={selectedTopic}
             onClose={() => setSelectedTopic(null)}
+            allTopics={topicBubbles}
+            onTopicClick={handleTopicClickFromPanel}
           />
         </div>
       )}
