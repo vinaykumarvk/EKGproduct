@@ -47,18 +47,21 @@ The UI features a comprehensive layout comprising a **Global Top Header**, a **M
 -   **Interactive Knowledge Graph Visualization**: Dual-mode visualization providing educational exploration of wealth management concepts:
     
     **Network View** (Simplified Topic Bubbles):
-    -   Simplified educational network with 35 interactive topic bubbles (7 large categories + 28 key topics)
+    -   Simplified educational network with ~39 interactive topic bubbles (7 categories + 28 main topics + subtopics)
+    -   **141 real connections** derived from knowledge graph relationships between nodes
     -   Force-directed d3-force layout for clean, organic positioning with collision detection
     -   Circular bubbles with varying sizes based on evidence count (60-120px)
     -   Color-coded by category: blue (Order Journey), purple (Customer Management), green (Products), amber (Transactions), cyan (Systems), red (Compliance), indigo (Reports)
-    -   Connection lines showing relationships between categories and their topics
+    -   Two types of connection lines: gray hierarchy lines (category↔topic) and green relationship lines (topic↔topic)
     -   Search functionality to find specific topics by name
-    -   Click bubbles to open detail panel with 3 tabs:
-        - **Overview**: Description, key concepts, evidence count, related topics
-        - **Learn**: Deep dive content and educational material
-        - **Practice**: Quiz and flashcard access for topic mastery
+    -   Click bubbles to open detail panel with 4 tabs:
+        - **Overview**: Description, key concepts, evidence count, clickable related topic badges for seamless navigation
+        - **Subtopics**: Drill-down list showing up to 3 connected subtopics from knowledge graph for deeper exploration
+        - **Learn**: Deep dive content with technical details (type, ID, aliases) from original node data
+        - **Practice**: Quiz and flashcard buttons for topic mastery
+    -   Interactive deep learning: click related topics or subtopics to navigate through connected concepts hierarchically
     -   Smooth hover effects (scale animation) and visual feedback
-    -   Stats panel showing category/topic counts and visibility status
+    -   Stats panel showing category/topic counts, connection count, and visibility status
     -   Minimap, zoom/pan controls, and fullscreen mode
     
     **Hierarchy View** (Tree-Based):
