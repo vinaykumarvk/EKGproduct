@@ -44,17 +44,22 @@ The UI features a comprehensive layout comprising a **Global Top Header**, a **M
 -   **Download & Export**: Individual answers can be exported as Markdown (.md) or PDF (.pdf).
 -   **Regenerate Functionality**: A "Regenerate" button for assistant messages to resubmit questions while maintaining context.
 -   **Wealth Mastery Tracking System**: Tracks user proficiency across five levels (Novice to Expert) based on quiz performance, topic coverage, and retention, with a compact, color-coded progress indicator in the global header.
--   **Interactive Knowledge Graph Visualization**: Dual-mode visualization of 938 wealth management concepts with 1,639 real relationship edges from EKG data:
+-   **Interactive Knowledge Graph Visualization**: Dual-mode visualization providing educational exploration of wealth management concepts:
     
-    **Network View** (Relationship-Based):
-    -   Force-directed layout using d3-force simulation for organic node positioning with collision detection
-    -   Hub-based display: shows top 50 most-connected nodes by default, filterable by connection count (1-20)
-    -   N-hop expansion: click nodes to reveal neighborhoods up to 3 hops away with BFS traversal
-    -   Real relationships: displays actual edges with 9+ types (DISPLAYED_ON, PROCESSES, USES, CONTAINS, FEEDS, GOVERNED_BY, etc.)
-    -   Relationship filtering: color-coded edges with checkbox filters for each relationship type
-    -   Node details: shows evidence count, connections, and connected neighbors on click
-    -   Search: find nodes by name and display matching results
-    -   Controls: Min Connections slider (1-20), Expansion Hops slider (1-3), relationship type filters
+    **Network View** (Simplified Topic Bubbles):
+    -   Simplified educational network with 35 interactive topic bubbles (7 large categories + 28 key topics)
+    -   Force-directed d3-force layout for clean, organic positioning with collision detection
+    -   Circular bubbles with varying sizes based on evidence count (60-120px)
+    -   Color-coded by category: blue (Order Journey), purple (Customer Management), green (Products), amber (Transactions), cyan (Systems), red (Compliance), indigo (Reports)
+    -   Connection lines showing relationships between categories and their topics
+    -   Search functionality to find specific topics by name
+    -   Click bubbles to open detail panel with 3 tabs:
+        - **Overview**: Description, key concepts, evidence count, related topics
+        - **Learn**: Deep dive content and educational material
+        - **Practice**: Quiz and flashcard access for topic mastery
+    -   Smooth hover effects (scale animation) and visual feedback
+    -   Stats panel showing category/topic counts and visibility status
+    -   Minimap, zoom/pan controls, and fullscreen mode
     
     **Hierarchy View** (Tree-Based):
     -   **Level 0 (Root)**: "Order Management & Wealth Operations" serves as the central anchor
@@ -63,7 +68,7 @@ The UI features a comprehensive layout comprising a **Global Top Header**, a **M
     -   Progressive reveal: nodes hidden by default, appear when parent is clicked
     -   Automatic tree layout: uses dagre algorithm for hierarchical positioning
     
-    Both views feature: zoom/pan controls, minimap navigation, fullscreen mode, statistics panel, and toggle between views using React Flow visualization.
+    Both views feature React Flow visualization with professional, educational-focused interface for learning wealth management concepts.
 
 ### System Design Choices
 -   **Schema-first development**: Uses TypeScript and Zod for strict schema validation.
