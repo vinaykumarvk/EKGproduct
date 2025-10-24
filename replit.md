@@ -44,14 +44,26 @@ The UI features a comprehensive layout comprising a **Global Top Header**, a **M
 -   **Download & Export**: Individual answers can be exported as Markdown (.md) or PDF (.pdf).
 -   **Regenerate Functionality**: A "Regenerate" button for assistant messages to resubmit questions while maintaining context.
 -   **Wealth Mastery Tracking System**: Tracks user proficiency across five levels (Novice to Expert) based on quiz performance, topic coverage, and retention, with a compact, color-coded progress indicator in the global header.
--   **Interactive Knowledge Mindmap**: Hierarchical visualization of 938 wealth management concepts organized into a 3-level tree structure with progressive reveal:
+-   **Interactive Knowledge Graph Visualization**: Dual-mode visualization of 938 wealth management concepts with 1,639 real relationship edges from EKG data:
+    
+    **Network View** (Relationship-Based):
+    -   Force-directed layout using d3-force simulation for organic node positioning with collision detection
+    -   Hub-based display: shows top 50 most-connected nodes by default, filterable by connection count (1-20)
+    -   N-hop expansion: click nodes to reveal neighborhoods up to 3 hops away with BFS traversal
+    -   Real relationships: displays actual edges with 9+ types (DISPLAYED_ON, PROCESSES, USES, CONTAINS, FEEDS, GOVERNED_BY, etc.)
+    -   Relationship filtering: color-coded edges with checkbox filters for each relationship type
+    -   Node details: shows evidence count, connections, and connected neighbors on click
+    -   Search: find nodes by name and display matching results
+    -   Controls: Min Connections slider (1-20), Expansion Hops slider (1-3), relationship type filters
+    
+    **Hierarchy View** (Tree-Based):
     -   **Level 0 (Root)**: "Order Management & Wealth Operations" serves as the central anchor
     -   **Level 1 (Categories)**: 7 semantic categories (Order Journey, Customer Management, Products & Securities, Transactions, Systems, Compliance, Reports)
     -   **Level 2 (Items)**: Top 5 most relevant items per category (34 total nodes when fully expanded)
-    -   **Progressive Reveal**: Nodes are hidden by default and only appear when their parent is clicked; clicking again collapses the node and all its descendants
-    -   **Automatic Tree Layout**: Uses dagre algorithm for proper hierarchical positioning with left-to-right direction, ensuring nodes expand in an organized tree structure
-    -   **Smart Search**: Search automatically expands ancestor nodes to reveal matches while hiding unrelated branches for focused exploration
-    -   Features: Automatic tree layout, click-to-expand interaction, intelligent search filtering, zoom/pan controls, color-coded levels (blue root, blue categories, green items), expansion indicators (chevron icons), statistics panel, and minimap navigation using React Flow visualization.
+    -   Progressive reveal: nodes hidden by default, appear when parent is clicked
+    -   Automatic tree layout: uses dagre algorithm for hierarchical positioning
+    
+    Both views feature: zoom/pan controls, minimap navigation, fullscreen mode, statistics panel, and toggle between views using React Flow visualization.
 
 ### System Design Choices
 -   **Schema-first development**: Uses TypeScript and Zod for strict schema validation.
