@@ -75,7 +75,7 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
       
       setSubmitted(true);
     }
-  }, [showResults, submitted, questions, topic]);
+  }, [showResults, submitted, questions, topic, selectedAnswers]);
 
   const calculateScore = () => {
     if (!questions || questions.length === 0) {

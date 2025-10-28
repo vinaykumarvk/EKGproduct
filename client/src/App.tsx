@@ -1,7 +1,6 @@
-import { useState } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -12,10 +11,13 @@ import WorkshopPage from "@/pages/workshop";
 import QuizPage from "@/pages/quiz";
 import AtlasPage from "@/pages/atlas";
 import NotFound from "@/pages/not-found";
+import type { UserMastery } from "@shared/schema";
 
 function Router() {
-  const [questionsAsked, setQuestionsAsked] = useState(0);
-  const [quizzesCompleted, setQuizzesCompleted] = useState(0);
+  // Fetch mastery data for header stats
+  const { data: masteryData } = useQuery<UserMastery>({
+    queryKey: ["/api/mastery"],
+  });
 
   const handleSearch = (query: string) => {
     console.log("Global search:", query);
@@ -25,8 +27,8 @@ function Router() {
   return (
     <div className="flex flex-col h-screen">
       <TopHeader 
-        questionsAsked={questionsAsked}
-        quizzesCompleted={quizzesCompleted}
+        questionsAsked={0}
+        quizzesCompleted={masteryData?.totalQuizzesTaken || 0}
         onSearch={handleSearch}
       />
       <div className="flex flex-1 overflow-hidden">
