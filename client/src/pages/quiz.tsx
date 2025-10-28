@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Brain, BookCheck, Layers, GraduationCap, FileText, Shield, TrendingUp, Users, Target, Sparkles, Award, BarChart3 } from "lucide-react";
+import { Brain, BookCheck, Layers, GraduationCap, FileText, Shield, TrendingUp, Users, Target, Sparkles, Award, BarChart3, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import QuizAssessment from "@/components/quiz-assessment";
@@ -77,6 +78,15 @@ export default function QuizPage() {
     }
   ];
 
+  // Group topics by category
+  const categorizedTopics = topics?.reduce((acc, topic) => {
+    if (!acc[topic.category]) {
+      acc[topic.category] = [];
+    }
+    acc[topic.category].push(topic);
+    return acc;
+  }, {} as Record<string, QuizTopic[]>) || {};
+
   if (activeQuizTopic) {
     return (
       <div className="flex-1 flex flex-col bg-background">
@@ -140,20 +150,11 @@ export default function QuizPage() {
 
               {isLoading && (
                 <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
+                  {[1, 2].map((i) => (
                     <Card key={i}>
                       <CardHeader className="p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex gap-3 flex-1">
-                            <Skeleton className="w-10 h-10 rounded-lg" />
-                            <div className="flex-1 space-y-2">
-                              <Skeleton className="h-4 w-1/3" />
-                              <Skeleton className="h-3 w-2/3" />
-                              <Skeleton className="h-3 w-1/2" />
-                            </div>
-                          </div>
-                          <Skeleton className="h-9 w-16" />
-                        </div>
+                        <Skeleton className="h-6 w-1/3 mb-2" />
+                        <Skeleton className="h-4 w-1/2" />
                       </CardHeader>
                     </Card>
                   ))}
@@ -166,55 +167,84 @@ export default function QuizPage() {
                 </div>
               )}
 
-              {topics && topics.length > 0 && (
-                <div className="space-y-3">
-                  {topics.map((topic) => {
-                    const Icon = categoryIcons[topic.category] || FileText;
-                    const difficulty = getDifficultyLevel(topic.easyCount, topic.mediumCount, topic.hardCount);
-                    const estimatedTime = getEstimatedTime(topic.questionCount);
+              {Object.keys(categorizedTopics).length > 0 && (
+                <div className="space-y-4">
+                  {Object.entries(categorizedTopics).map(([category, categoryTopics]) => {
+                    const Icon = categoryIcons[category] || FileText;
+                    const totalQuestions = categoryTopics.reduce((sum, t) => sum + t.questionCount, 0);
+                    const totalEasy = categoryTopics.reduce((sum, t) => sum + t.easyCount, 0);
+                    const totalMedium = categoryTopics.reduce((sum, t) => sum + t.mediumCount, 0);
+                    const totalHard = categoryTopics.reduce((sum, t) => sum + t.hardCount, 0);
 
                     return (
-                      <Card
-                        key={topic.topic}
-                        className="hover:shadow-lg hover:border-primary/50 transition-all"
-                        data-testid={`card-quiz-${topic.topic.toLowerCase().replace(/\s+/g, '-')}`}
-                      >
-                        <CardHeader className="p-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex gap-3 flex-1">
-                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <Icon className="w-5 h-5 text-primary" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <CardTitle className="text-base mb-1">{topic.topic}</CardTitle>
-                                <CardDescription className="text-xs mb-2">
-                                  {topic.category} • Comprehensive knowledge assessment
-                                </CardDescription>
-                                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <BookCheck className="w-3 h-3" />
-                                    {topic.questionCount} Questions
-                                  </span>
-                                  <span>•</span>
-                                  <span>{difficulty}</span>
-                                  <span>•</span>
-                                  <span>{estimatedTime}</span>
-                                  <span>•</span>
-                                  <span className="text-green-600">Easy: {topic.easyCount}</span>
-                                  <span className="text-yellow-600">Medium: {topic.mediumCount}</span>
-                                  <span className="text-red-600">Hard: {topic.hardCount}</span>
+                      <Card key={category} className="border-2">
+                        <Accordion type="single" collapsible defaultValue={category}>
+                          <AccordionItem value={category} className="border-none">
+                            <AccordionTrigger 
+                              className="px-4 py-3 hover:no-underline hover:bg-muted/50"
+                              data-testid={`accordion-${category.toLowerCase().replace(/\s+/g, '-')}`}
+                            >
+                              <div className="flex items-center gap-3 flex-1 text-left">
+                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                  <Icon className="w-5 h-5 text-primary" />
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="font-semibold text-base mb-1">{category}</h3>
+                                  <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <BookCheck className="w-3 h-3" />
+                                      {categoryTopics.length} Topics
+                                    </span>
+                                    <span>•</span>
+                                    <span>{totalQuestions} Questions</span>
+                                    <span>•</span>
+                                    <span className="text-green-600">Easy: {totalEasy}</span>
+                                    <span className="text-yellow-600">Medium: {totalMedium}</span>
+                                    <span className="text-red-600">Hard: {totalHard}</span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => setActiveQuizTopic(topic.topic)}
-                              data-testid={`button-start-${topic.topic.toLowerCase().replace(/\s+/g, '-')}`}
-                            >
-                              Start
-                            </Button>
-                          </div>
-                        </CardHeader>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-4 pt-2">
+                              <div className="space-y-2 pl-2">
+                                {categoryTopics.map((topic) => {
+                                  const difficulty = getDifficultyLevel(topic.easyCount, topic.mediumCount, topic.hardCount);
+                                  const estimatedTime = getEstimatedTime(topic.questionCount);
+
+                                  return (
+                                    <div
+                                      key={topic.topic}
+                                      className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/30 transition-all"
+                                      data-testid={`card-quiz-${topic.topic.toLowerCase().replace(/\s+/g, '-')}`}
+                                    >
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-medium text-sm mb-1">{topic.topic}</h4>
+                                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                          <span>{topic.questionCount} Questions</span>
+                                          <span>•</span>
+                                          <span>{difficulty}</span>
+                                          <span>•</span>
+                                          <span>{estimatedTime}</span>
+                                          <span>•</span>
+                                          <span className="text-green-600">Easy: {topic.easyCount}</span>
+                                          <span className="text-yellow-600">Medium: {topic.mediumCount}</span>
+                                          <span className="text-red-600">Hard: {topic.hardCount}</span>
+                                        </div>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => setActiveQuizTopic(topic.topic)}
+                                        data-testid={`button-start-${topic.topic.toLowerCase().replace(/\s+/g, '-')}`}
+                                      >
+                                        Start
+                                      </Button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
                       </Card>
                     );
                   })}
@@ -229,7 +259,7 @@ export default function QuizPage() {
                   <div>
                     <h3 className="font-semibold text-sm mb-1">How Structured Quizzes Work</h3>
                     <p className="text-xs text-muted-foreground">
-                      Select a topic to begin your assessment. Questions are presented one at a time. 
+                      Expand a category to see available topics. Select a topic to begin your assessment. Questions are presented one at a time. 
                       Track your score, review incorrect answers, and retake quizzes to improve your knowledge.
                     </p>
                   </div>
