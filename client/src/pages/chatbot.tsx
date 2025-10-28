@@ -79,10 +79,10 @@ function cleanupCitations(text: string): string {
   return cleaned;
 }
 
-// Conversation starter prompts organized by category
+// Conversation starter prompts organized by category (top 6 most relevant)
 const conversationStarters = [
   {
-    category: "Order Journey & Processes",
+    category: "Order Journey",
     icon: ShoppingCart,
     color: "from-blue-500/10 to-blue-500/5 border-blue-500/20 hover:border-blue-500/40",
     iconColor: "text-blue-500",
@@ -93,7 +93,7 @@ const conversationStarters = [
     ]
   },
   {
-    category: "Customer & Account Management",
+    category: "Customer Management",
     icon: Users,
     color: "from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:border-purple-500/40",
     iconColor: "text-purple-500",
@@ -115,7 +115,7 @@ const conversationStarters = [
     ]
   },
   {
-    category: "Transactions & Operations",
+    category: "Transactions",
     icon: ArrowRightLeft,
     color: "from-amber-500/10 to-amber-500/5 border-amber-500/20 hover:border-amber-500/40",
     iconColor: "text-amber-500",
@@ -126,18 +126,7 @@ const conversationStarters = [
     ]
   },
   {
-    category: "Systems & Integration",
-    icon: Network,
-    color: "from-cyan-500/10 to-cyan-500/5 border-cyan-500/20 hover:border-cyan-500/40",
-    iconColor: "text-cyan-500",
-    prompts: [
-      "How do APIs integrate with the platform?",
-      "What systems are used for data management?",
-      "Explain the integration architecture"
-    ]
-  },
-  {
-    category: "Compliance & Regulations",
+    category: "Compliance",
     icon: Shield,
     color: "from-red-500/10 to-red-500/5 border-red-500/20 hover:border-red-500/40",
     iconColor: "text-red-500",
@@ -148,7 +137,7 @@ const conversationStarters = [
     ]
   },
   {
-    category: "Reports & Documents",
+    category: "Reports",
     icon: FileBarChart,
     color: "from-indigo-500/10 to-indigo-500/5 border-indigo-500/20 hover:border-indigo-500/40",
     iconColor: "text-indigo-500",
@@ -744,19 +733,19 @@ export default function ChatbotPage() {
         <ScrollArea ref={scrollAreaRef} className="flex-1">
           <div className="max-w-4xl mx-auto px-6 py-8">
             {!hasMessages && !isLoading && (
-              <div className="flex flex-col items-center justify-center space-y-8 py-12">
-                <div className="text-center space-y-3">
-                  <Sparkles className="w-16 h-16 text-primary/50 mx-auto" />
-                  <h2 className="text-2xl font-semibold text-foreground">
+              <div className="flex flex-col items-center justify-center space-y-5 py-6">
+                <div className="text-center space-y-2">
+                  <Sparkles className="w-12 h-12 text-primary/50 mx-auto" />
+                  <h2 className="text-xl font-semibold text-foreground">
                     Start a New Conversation
                   </h2>
-                  <p className="text-muted-foreground max-w-md">
-                    Choose a topic below or ask your own question about wealth management
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Choose a topic below or ask your own question
                   </p>
                 </div>
 
                 {/* Conversation Starter Cards */}
-                <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {conversationStarters.map((starter, categoryIndex) => {
                     const Icon = starter.icon;
                     // Randomly pick one prompt from each category to display
@@ -768,26 +757,26 @@ export default function ChatbotPage() {
                         onClick={() => {
                           handleSubmit(randomPrompt);
                         }}
-                        className={`group relative p-5 rounded-xl border bg-gradient-to-br transition-all hover:shadow-lg hover:scale-[1.02] text-left ${starter.color}`}
+                        className={`group relative p-4 rounded-lg border bg-gradient-to-br transition-all hover:shadow-lg hover:scale-[1.02] text-left ${starter.color}`}
                         data-testid={`starter-card-${categoryIndex}`}
                       >
-                        <div className="flex items-start gap-3">
-                          <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-background/50 flex items-center justify-center ${starter.iconColor}`}>
-                            <Icon className="w-5 h-5" />
+                        <div className="flex items-start gap-2.5">
+                          <div className={`flex-shrink-0 w-9 h-9 rounded-lg bg-background/50 flex items-center justify-center ${starter.iconColor}`}>
+                            <Icon className="w-4 h-4" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-semibold text-foreground mb-2 line-clamp-1">
+                            <h3 className="text-sm font-semibold text-foreground mb-1.5 line-clamp-1">
                               {starter.category}
                             </h3>
-                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">
                               {randomPrompt}
                             </p>
                           </div>
                         </div>
                         
                         {/* Hover indicator */}
-                        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Send className="w-4 h-4 text-muted-foreground" />
+                        <div className="absolute bottom-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Send className="w-3.5 h-3.5 text-muted-foreground" />
                         </div>
                       </button>
                     );
@@ -795,8 +784,8 @@ export default function ChatbotPage() {
                 </div>
 
                 {/* Additional help text */}
-                <p className="text-xs text-muted-foreground/70 max-w-md text-center">
-                  💡 Click any card to start a conversation, or type your own question below
+                <p className="text-xs text-muted-foreground/70 text-center">
+                  💡 Click any card to start, or type your own question below
                 </p>
               </div>
             )}
