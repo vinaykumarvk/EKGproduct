@@ -57,6 +57,7 @@ export interface IStorage {
   
   // Quiz question bank methods
   getQuizCategories(): Promise<any[]>;
+  getQuizQuestions(topic: string): Promise<QuizQuestion[]>;
   
   // Old conversation methods (kept for backward compatibility)
   getConversations(): Promise<Conversation[]>;
@@ -258,20 +259,27 @@ export class DatabaseStorage implements IStorage {
 
   // Quiz question bank methods
   async getQuizCategories(): Promise<any[]> {
-    // Group questions by category and get statistics
+    // Group questions by topic (not category) to show individual sub-topic quizzes
     const result = await db
       .select({
         category: quizQuestions.category,
+        topic: quizQuestions.topic,
         questionCount: sql<number>`count(*)::int`,
-        topics: sql<string>`string_agg(DISTINCT ${quizQuestions.topic}, '||')`,
         easyCount: sql<number>`count(*) FILTER (WHERE ${quizQuestions.difficulty} = 'Easy')::int`,
         mediumCount: sql<number>`count(*) FILTER (WHERE ${quizQuestions.difficulty} = 'Medium')::int`,
         hardCount: sql<number>`count(*) FILTER (WHERE ${quizQuestions.difficulty} = 'Hard')::int`,
       })
       .from(quizQuestions)
-      .groupBy(quizQuestions.category);
+      .groupBy(quizQuestions.category, quizQuestions.topic);
     
     return result;
+  }
+
+  async getQuizQuestions(topic: string): Promise<QuizQuestion[]> {
+    return await db
+      .select()
+      .from(quizQuestions)
+      .where(eq(quizQuestions.topic, topic));
   }
 }
 

@@ -1,20 +1,21 @@
+import { useState } from "react";
 import { Brain, BookCheck, Layers, GraduationCap, FileText, Shield, TrendingUp, Users, Target, Sparkles, Award, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import QuizAssessment from "@/components/quiz-assessment";
 
-interface QuizCategory {
+interface QuizTopic {
   category: string;
+  topic: string;
   questionCount: number;
-  topics: string;
   easyCount: number;
   mediumCount: number;
   hardCount: number;
 }
 
-// Map category names to appropriate icons
 const categoryIcons: Record<string, any> = {
   "Order Management": FileText,
   "Wealth Management Fundamentals": BookCheck,
@@ -23,22 +24,21 @@ const categoryIcons: Record<string, any> = {
   "Regulatory & Compliance": Shield,
 };
 
-// Determine difficulty level based on question distribution
 function getDifficultyLevel(easy: number, medium: number, hard: number): string {
   if (hard > easy && hard > medium) return "Advanced";
   if (medium > easy) return "Intermediate";
   return "Beginner";
 }
 
-// Estimate time (assume 1 minute per question)
 function getEstimatedTime(questionCount: number): string {
-  const minutes = Math.round(questionCount * 0.7); // ~40 seconds per question
+  const minutes = Math.round(questionCount * 0.7);
   return `${minutes} min`;
 }
 
 export default function QuizPage() {
-  // Fetch quiz categories from database
-  const { data: categories, isLoading, error } = useQuery<QuizCategory[]>({
+  const [activeQuizTopic, setActiveQuizTopic] = useState<string | null>(null);
+
+  const { data: topics, isLoading, error } = useQuery<QuizTopic[]>({
     queryKey: ["/api/quiz/categories"],
   });
 
@@ -77,6 +77,29 @@ export default function QuizPage() {
     }
   ];
 
+  if (activeQuizTopic) {
+    return (
+      <div className="flex-1 flex flex-col bg-background">
+        <header className="border-b border-border bg-card/30 backdrop-blur-sm px-6 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <Brain className="w-5 h-5 text-primary" />
+            <div>
+              <h1 className="text-xl font-bold text-foreground" data-testid="text-quiz-title">
+                Quiz & Assessment
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Test knowledge retention and enhance learning
+              </p>
+            </div>
+          </div>
+        </header>
+        <div className="flex-1 overflow-auto">
+          <QuizAssessment topic={activeQuizTopic} onBack={() => setActiveQuizTopic(null)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col bg-background">
       <header className="border-b border-border bg-card/30 backdrop-blur-sm px-6 py-2.5">
@@ -111,7 +134,7 @@ export default function QuizPage() {
               <div className="mb-6 text-center">
                 <h2 className="text-2xl font-bold mb-2">Knowledge Assessment</h2>
                 <p className="text-sm text-muted-foreground">
-                  {isLoading ? "Loading..." : `${categories?.reduce((sum, cat) => sum + cat.questionCount, 0) || 0}+ questions`} across {categories?.length || 0} categories • Track your progress and mastery
+                  {isLoading ? "Loading..." : `${topics?.reduce((sum, t) => sum + t.questionCount, 0) || 0} questions`} across {topics?.length || 0} topics • Track your progress and mastery
                 </p>
               </div>
 
@@ -139,23 +162,22 @@ export default function QuizPage() {
 
               {error && (
                 <div className="text-center py-8">
-                  <p className="text-destructive">Failed to load quiz categories</p>
+                  <p className="text-destructive">Failed to load quiz topics</p>
                 </div>
               )}
 
-              {categories && categories.length > 0 && (
+              {topics && topics.length > 0 && (
                 <div className="space-y-3">
-                  {categories.map((category) => {
-                    const Icon = categoryIcons[category.category] || FileText;
-                    const topics = category.topics.split('||').slice(0, 4); // Show up to 4 topics
-                    const difficulty = getDifficultyLevel(category.easyCount, category.mediumCount, category.hardCount);
-                    const estimatedTime = getEstimatedTime(category.questionCount);
+                  {topics.map((topic) => {
+                    const Icon = categoryIcons[topic.category] || FileText;
+                    const difficulty = getDifficultyLevel(topic.easyCount, topic.mediumCount, topic.hardCount);
+                    const estimatedTime = getEstimatedTime(topic.questionCount);
 
                     return (
                       <Card
-                        key={category.category}
-                        className="hover:shadow-lg hover:border-primary/50 transition-all cursor-pointer"
-                        data-testid={`card-quiz-${category.category.toLowerCase().replace(/\s+/g, '-')}`}
+                        key={topic.topic}
+                        className="hover:shadow-lg hover:border-primary/50 transition-all"
+                        data-testid={`card-quiz-${topic.topic.toLowerCase().replace(/\s+/g, '-')}`}
                       >
                         <CardHeader className="p-4">
                           <div className="flex items-start justify-between gap-4">
@@ -164,39 +186,30 @@ export default function QuizPage() {
                                 <Icon className="w-5 h-5 text-primary" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <CardTitle className="text-base mb-1">{category.category}</CardTitle>
+                                <CardTitle className="text-base mb-1">{topic.topic}</CardTitle>
                                 <CardDescription className="text-xs mb-2">
-                                  Comprehensive {category.category.toLowerCase()} knowledge assessment
+                                  {topic.category} • Comprehensive knowledge assessment
                                 </CardDescription>
-                                <div className="flex flex-wrap gap-1.5 mb-2">
-                                  {topics.map((topic) => (
-                                    <span
-                                      key={topic}
-                                      className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
-                                    >
-                                      {topic}
-                                    </span>
-                                  ))}
-                                </div>
-                                <div className="flex gap-3 text-xs text-muted-foreground">
+                                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
                                     <BookCheck className="w-3 h-3" />
-                                    {category.questionCount} Questions
+                                    {topic.questionCount} Questions
                                   </span>
                                   <span>•</span>
                                   <span>{difficulty}</span>
                                   <span>•</span>
                                   <span>{estimatedTime}</span>
                                   <span>•</span>
-                                  <span className="text-green-600">Easy: {category.easyCount}</span>
-                                  <span className="text-yellow-600">Medium: {category.mediumCount}</span>
-                                  <span className="text-red-600">Hard: {category.hardCount}</span>
+                                  <span className="text-green-600">Easy: {topic.easyCount}</span>
+                                  <span className="text-yellow-600">Medium: {topic.mediumCount}</span>
+                                  <span className="text-red-600">Hard: {topic.hardCount}</span>
                                 </div>
                               </div>
                             </div>
                             <Button
                               size="sm"
-                              data-testid={`button-start-${category.category.toLowerCase().replace(/\s+/g, '-')}`}
+                              onClick={() => setActiveQuizTopic(topic.topic)}
+                              data-testid={`button-start-${topic.topic.toLowerCase().replace(/\s+/g, '-')}`}
                             >
                               Start
                             </Button>
@@ -216,8 +229,8 @@ export default function QuizPage() {
                   <div>
                     <h3 className="font-semibold text-sm mb-1">How Structured Quizzes Work</h3>
                     <p className="text-xs text-muted-foreground">
-                      Select a category to begin a timed assessment. Questions are randomly selected from our question bank. 
-                      Track your score, review incorrect answers, and monitor your progress over time.
+                      Select a topic to begin your assessment. Questions are presented one at a time. 
+                      Track your score, review incorrect answers, and retake quizzes to improve your knowledge.
                     </p>
                   </div>
                 </div>

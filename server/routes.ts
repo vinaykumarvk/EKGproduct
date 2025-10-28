@@ -555,7 +555,7 @@ Generate quiz questions that:
     }
   });
 
-  // Get quiz question bank summary - grouped by category
+  // Get quiz question bank summary - grouped by topic
   app.get("/api/quiz/categories", async (req, res) => {
     try {
       const categories = await storage.getQuizCategories();
@@ -563,6 +563,18 @@ Generate quiz questions that:
     } catch (error) {
       console.error("Error fetching quiz categories:", error);
       res.status(500).json({ error: "Failed to fetch quiz categories" });
+    }
+  });
+
+  // Get quiz questions for a specific topic
+  app.get("/api/quiz/questions/:topic", async (req, res) => {
+    try {
+      const topic = decodeURIComponent(req.params.topic);
+      const questions = await storage.getQuizQuestions(topic);
+      res.json(questions);
+    } catch (error) {
+      console.error("Error fetching quiz questions:", error);
+      res.status(500).json({ error: "Failed to fetch quiz questions" });
     }
   });
 
