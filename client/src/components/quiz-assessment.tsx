@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle, XCircle, ArrowLeft, ArrowRight } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 interface QuizQuestion {
   id: number;
@@ -31,6 +32,7 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const { data: questions, isLoading } = useQuery<QuizQuestion[]>({
     queryKey: ["/api/quiz/questions", topic],
@@ -38,6 +40,22 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
       const response = await fetch(`/api/quiz/questions/${encodeURIComponent(topic)}`);
       if (!response.ok) throw new Error("Failed to fetch questions");
       return response.json();
+    },
+  });
+
+  const submitQuizMutation = useMutation({
+    mutationFn: async (data: {
+      topic: string;
+      category: string;
+      score: number;
+      totalQuestions: number;
+      correctAnswers: number;
+    }) => {
+      return apiRequest("/api/quiz/submit", "POST", data);
+    },
+    onSuccess: () => {
+      // Invalidate mastery query to update the status bar
+      queryClient.invalidateQueries({ queryKey: ["/api/mastery"] });
     },
   });
 
@@ -109,6 +127,24 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
     });
     return { correct, total: questions.length, percentage: (correct / questions.length) * 100 };
   };
+
+  // Submit quiz results when showing results for the first time
+  useEffect(() => {
+    if (showResults && !submitted && questions && questions.length > 0) {
+      const score = calculateScore();
+      const category = questions[0].category; // All questions have the same category
+      
+      submitQuizMutation.mutate({
+        topic,
+        category,
+        score: Math.round(score.percentage),
+        totalQuestions: questions.length,
+        correctAnswers: score.correct,
+      });
+      
+      setSubmitted(true);
+    }
+  }, [showResults, submitted, questions, topic]);
 
   if (showResults) {
     const score = calculateScore();
@@ -185,6 +221,7 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
                   setCurrentQuestionIndex(0);
                   setSelectedAnswers({});
                   setShowResults(false);
+                  setSubmitted(false);
                 }}
                 className="flex-1"
                 data-testid="button-retake"

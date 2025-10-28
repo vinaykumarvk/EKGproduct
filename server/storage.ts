@@ -58,6 +58,13 @@ export interface IStorage {
   // Quiz question bank methods
   getQuizCategories(): Promise<any[]>;
   getQuizQuestions(topic: string): Promise<QuizQuestion[]>;
+  saveQuizAttemptAndUpdateMastery(
+    topic: string,
+    category: string,
+    score: number,
+    totalQuestions: number,
+    correctAnswers: number
+  ): Promise<{ mastery: UserMastery; attempt: QuizAttempt }>;
   
   // Old conversation methods (kept for backward compatibility)
   getConversations(): Promise<Conversation[]>;
@@ -280,6 +287,85 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(quizQuestions)
       .where(eq(quizQuestions.topic, topic));
+  }
+
+  async saveQuizAttemptAndUpdateMastery(
+    topic: string,
+    category: string,
+    score: number,
+    totalQuestions: number,
+    correctAnswers: number
+  ): Promise<{ mastery: UserMastery; attempt: QuizAttempt }> {
+    // Calculate points earned (score as percentage out of 100)
+    const pointsEarned = Math.round(score);
+
+    // Save quiz attempt
+    const [attempt] = await db
+      .insert(quizAttempts)
+      .values({
+        topic,
+        category,
+        totalQuestions,
+        correctAnswers,
+        scorePercentage: score,
+        pointsEarned,
+      })
+      .returning();
+
+    // Get current mastery or create new one
+    let mastery = await this.getUserMastery();
+    
+    if (!mastery) {
+      // Create initial mastery record
+      const percentage = Math.min(100, Math.round((pointsEarned / 600) * 100));
+      const [newMastery] = await db
+        .insert(userMastery)
+        .values({
+          totalCumulativePoints: pointsEarned,
+          overallScore: percentage,
+          currentLevel: this.calculateLevel(pointsEarned),
+          quizPerformanceScore: pointsEarned,
+          topicCoverageScore: 0,
+          retentionScore: 0,
+          topicsMastered: score >= 70 ? 1 : 0,
+          totalQuizzesTaken: 1,
+        })
+        .returning();
+      mastery = newMastery;
+    } else {
+      // Update existing mastery - add points cumulatively
+      const newTotalPoints = mastery.totalCumulativePoints + pointsEarned;
+      const newQuizCount = mastery.totalQuizzesTaken + 1;
+      const percentage = Math.min(100, Math.round((newTotalPoints / 600) * 100));
+      
+      // Check if this topic was passed (≥70%)
+      const topicPassed = score >= 70;
+      
+      const [updatedMastery] = await db
+        .update(userMastery)
+        .set({
+          totalCumulativePoints: newTotalPoints,
+          overallScore: percentage,
+          currentLevel: this.calculateLevel(newTotalPoints),
+          quizPerformanceScore: newTotalPoints, // Simplified: all points go here
+          totalQuizzesTaken: newQuizCount,
+          topicsMastered: topicPassed ? mastery.topicsMastered + 1 : mastery.topicsMastered,
+          updatedAt: new Date(),
+        })
+        .where(eq(userMastery.id, mastery.id))
+        .returning();
+      mastery = updatedMastery;
+    }
+
+    return { mastery, attempt };
+  }
+
+  private calculateLevel(points: number): string {
+    if (points >= 481) return "Expert";
+    if (points >= 361) return "Advanced";
+    if (points >= 241) return "Intermediate";
+    if (points >= 121) return "Learning";
+    return "Novice";
   }
 }
 

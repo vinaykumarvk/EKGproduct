@@ -96,10 +96,13 @@ export type User = typeof users.$inferSelect;
 // Quiz Attempts - tracks each quiz completion
 export const quizAttempts = pgTable("quiz_attempts", {
   id: serial("id").primaryKey(),
-  threadId: integer("thread_id").notNull().references(() => threads.id, { onDelete: "cascade" }),
+  threadId: integer("thread_id").references(() => threads.id, { onDelete: "cascade" }),
+  topic: text("topic").notNull(), // Quiz topic name
+  category: text("category").notNull(), // Quiz category
   totalQuestions: integer("total_questions").notNull(),
   correctAnswers: integer("correct_answers").notNull(),
   scorePercentage: integer("score_percentage").notNull(), // 0-100
+  pointsEarned: integer("points_earned").notNull(), // Points added to cumulative score
   timeSpent: integer("time_spent"), // seconds to complete (optional for now)
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -135,7 +138,8 @@ export type QuizResponse = typeof quizResponses.$inferSelect;
 // User Mastery - calculated mastery scores
 export const userMastery = pgTable("user_mastery", {
   id: serial("id").primaryKey(),
-  overallScore: integer("overall_score").notNull().default(0), // 0-100
+  overallScore: integer("overall_score").notNull().default(0), // 0-100 percentage for UI display
+  totalCumulativePoints: integer("total_cumulative_points").notNull().default(0), // Cumulative points (unbounded)
   currentLevel: text("current_level").notNull().default("Novice"), // Novice, Learning, Intermediate, Advanced, Expert
   quizPerformanceScore: integer("quiz_performance_score").notNull().default(0), // 0-50
   topicCoverageScore: integer("topic_coverage_score").notNull().default(0), // 0-30

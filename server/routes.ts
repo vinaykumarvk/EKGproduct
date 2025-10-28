@@ -578,6 +578,30 @@ Generate quiz questions that:
     }
   });
 
+  // Submit quiz results and update mastery score
+  app.post("/api/quiz/submit", async (req, res) => {
+    try {
+      const { topic, category, score, totalQuestions, correctAnswers } = req.body;
+      
+      if (!topic || !category || typeof score !== 'number' || !totalQuestions || typeof correctAnswers !== 'number') {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const result = await storage.saveQuizAttemptAndUpdateMastery(
+        topic,
+        category,
+        score,
+        totalQuestions,
+        correctAnswers
+      );
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error submitting quiz:", error);
+      res.status(500).json({ error: "Failed to submit quiz" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
