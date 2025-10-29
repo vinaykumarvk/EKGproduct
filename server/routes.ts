@@ -692,6 +692,61 @@ Generate quiz questions that:
     }
   });
 
+  // Process Excel file upload and store requirements
+  app.post("/api/analyze-excel", async (req, res) => {
+    try {
+      const { data, replaceExisting } = req.body;
+      
+      if (!data || !Array.isArray(data)) {
+        return res.status(400).json({ error: "Invalid data format" });
+      }
+
+      // If replaceExisting is true, delete all existing records first
+      if (replaceExisting) {
+        // Get all existing responses and delete them
+        const existingResponses = await storage.getAllRfpResponses();
+        for (const response of existingResponses) {
+          await storage.deleteRfpResponse(response.id);
+        }
+      }
+
+      // Insert new records
+      let recordsAdded = 0;
+      for (const row of data) {
+        await storage.createRfpResponse({
+          rfpName: row.rfpName,
+          requirementId: row.requirementId,
+          category: row.category,
+          requirement: row.requirement,
+          finalResponse: row.finalResponse || "",
+          uploadedBy: row.uploadedBy,
+          rating: row.rating || null
+        });
+        recordsAdded++;
+      }
+
+      res.json({ 
+        success: true, 
+        recordsAdded,
+        message: `Successfully ${replaceExisting ? 'replaced' : 'added'} ${recordsAdded} records`
+      });
+    } catch (error) {
+      console.error("Error processing Excel data:", error);
+      res.status(500).json({ error: "Failed to process Excel data" });
+    }
+  });
+
+  // Get all Excel requirements (alias for getAllRfpResponses)
+  app.get("/api/excel-requirements", async (req, res) => {
+    try {
+      const responses = await storage.getAllRfpResponses();
+      res.json(responses);
+    } catch (error) {
+      console.error("Error fetching Excel requirements:", error);
+      res.status(500).json({ error: "Failed to fetch Excel requirements" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
