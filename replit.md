@@ -32,6 +32,14 @@ The UI features a comprehensive layout comprising a **Global Top Header**, a **M
 -   **Global Header**: Displays "Questions Asked" and "Quizzes Completed" counters, global search, and user menu.
 -   **Multi-Section Navigation**: Includes "Conversation" (conversational AI), "Launchpad" (pre-developed templates), "Quiz" (knowledge testing), and "Atlas" (knowledge map) sections.
 -   **Launchpad Templates**: 6 pre-developed templates: New Report, Client Proposal, Strategic Memo, Presentation Deck, RFP Response, and Case Study, presented in a responsive grid.
+-   **RFP Response Generator**: Integrated full-stack RFP system accessible from Launchpad, featuring:
+    -   **Upload Requirements**: Excel file upload (.xlsx) for RFP requirements with automatic parsing
+    -   **View Responses**: Tab-based interface to browse all RFP responses with status indicators
+    -   **Reference Panel**: Displays supporting evidence and source documents with relevance scores
+    -   **Export Functionality**: Multiple export formats (Markdown, Excel, PDF, Email) via utility functions
+    -   **Database Tables**: Three PostgreSQL tables (rfpResponses, excelRequirementResponses, referenceResponses) with proper foreign key relations
+    -   **RESTful API**: Complete CRUD endpoints at `/api/rfp/responses` and `/api/excel-requirements/:id/references`
+    -   **Future AI Integration**: Architecture supports Python backend with Anthropic Claude, OpenAI, and Deepseek LLM integration for automated response generation
 -   **Quiz Question Bank**: 70 Order Management questions stored in PostgreSQL across 6 topics (Introduction, SEBI Compliance, Order Journey, SIP/SWP/STP, API Integration, Exception Handling) with 3 difficulty levels (Easy: 25, Medium: 25, Hard: 20).
 -   **Quiz & Assessment Dual-Mode System**: Tab-based interface offering:
     -   **Structured Quiz**: Individual topic-based quizzes with real-time question fetching from PostgreSQL. Each quiz displays:
