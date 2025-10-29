@@ -747,6 +747,32 @@ Generate quiz questions that:
     }
   });
 
+  // Generate AI response for a requirement (stub - Python backend not yet implemented)
+  app.post("/api/generate-response", async (req, res) => {
+    try {
+      const { requirement_id, model } = req.body;
+      
+      console.log(`Generate response request for requirement ${requirement_id} with model ${model}`);
+      
+      // Note: This is a stub endpoint. The actual AI generation requires:
+      // 1. Python backend setup (tasks 7-9 from integration plan)
+      // 2. API keys configured (ANTHROPIC_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY)
+      // 3. LLM integration code (call_llms.py)
+      
+      // For now, return a response indicating the AI backend needs to be set up
+      res.json({ 
+        success: false,
+        error: "AI backend not configured. Python LLM integration (tasks 7-9) needs to be implemented.",
+        requirement_id,
+        model,
+        message: "To enable AI-powered response generation, the Python backend with LLM integration must be set up."
+      });
+    } catch (error) {
+      console.error("Error in generate-response:", error);
+      res.status(500).json({ error: "Failed to process generation request" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
