@@ -29,11 +29,15 @@ const navItems = [
   }
 ];
 
-export function MainNavSidebar() {
+interface MainNavSidebarProps {
+  className?: string;
+}
+
+export function MainNavSidebar({ className }: MainNavSidebarProps = {}) {
   const [location] = useLocation();
 
   return (
-    <div className="w-20 border-r border-border bg-card flex flex-col items-center py-6 gap-6">
+    <div className={`w-20 border-r border-border bg-card flex flex-col items-center py-6 gap-6 ${className || ''}`}>
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = location === item.path;

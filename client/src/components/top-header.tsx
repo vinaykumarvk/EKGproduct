@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, MessageSquare, Trophy, User, Sun, Moon } from "lucide-react";
+import { Search, MessageSquare, Trophy, User, Sun, Moon, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,9 +17,10 @@ interface TopHeaderProps {
   questionsAsked?: number;
   quizzesCompleted?: number;
   onSearch?: (query: string) => void;
+  onMenuClick?: () => void;
 }
 
-export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch }: TopHeaderProps) {
+export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch, onMenuClick }: TopHeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, toggleTheme } = useTheme();
 
@@ -29,10 +30,20 @@ export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch }
   };
 
   return (
-    <div className="h-14 border-b border-border bg-card flex items-center justify-between px-6">
-      {/* Left: Stats */}
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2" data-testid="stat-questions">
+    <div className="h-14 border-b border-border bg-card flex items-center justify-between px-4 md:px-6">
+      {/* Left: Hamburger Menu (Mobile) + Stats */}
+      <div className="flex items-center gap-3 md:gap-6">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          className="md:hidden w-9 h-9"
+          data-testid="button-mobile-menu"
+          title="Open menu"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+        <div className="hidden sm:flex items-center gap-2" data-testid="stat-questions">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <MessageSquare className="w-4 h-4 text-primary" />
           </div>
@@ -44,7 +55,7 @@ export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch }
           </div>
         </div>
 
-        <div className="flex items-center gap-2" data-testid="stat-quizzes">
+        <div className="hidden sm:flex items-center gap-2" data-testid="stat-quizzes">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <Trophy className="w-4 h-4 text-primary" />
           </div>
@@ -58,7 +69,7 @@ export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch }
       </div>
 
       {/* Center: Search Bar */}
-      <div className="flex-1 max-w-md mx-6">
+      <div className="flex-1 max-w-md mx-2 sm:mx-6">
         <form onSubmit={handleSearch} className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
