@@ -34,6 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
+      // TEMPORARY: Check for bypass user in localStorage
+      const bypassUserStr = localStorage.getItem("bypass_user");
+      if (bypassUserStr) {
+        try {
+          const bypassUser = JSON.parse(bypassUserStr);
+          console.warn("⚠️ Using bypass authentication - database unavailable");
+          setUser(bypassUser);
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.error("Failed to parse bypass user:", e);
+          localStorage.removeItem("bypass_user");
+        }
+      }
+
       const response = await fetch("/api/auth/me", {
         credentials: "include",
       });
@@ -84,6 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
+      // Clear bypass user from localStorage
+      localStorage.removeItem("bypass_user");
       setUser(null);
       setLocation("/login");
     }
