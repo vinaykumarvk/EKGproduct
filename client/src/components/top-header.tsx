@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, MessageSquare, Trophy, User, Sun, Moon, Menu } from "lucide-react";
+import { Search, MessageSquare, Trophy, User, Sun, Moon, Menu, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/theme-provider";
 import { MasteryBar } from "@/components/mastery-bar";
+import { useAuth } from "@/contexts/auth-context";
 
 interface TopHeaderProps {
   questionsAsked?: number;
@@ -23,10 +24,15 @@ interface TopHeaderProps {
 export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch, onMenuClick }: TopHeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch?.(searchQuery);
+  };
+
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -116,7 +122,13 @@ export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch, 
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user?.fullName}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                <p className="text-xs leading-none text-primary mt-1">Team: {user?.team}</p>
+              </div>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem data-testid="menu-profile">
               Profile Settings
@@ -128,7 +140,12 @@ export function TopHeader({ questionsAsked = 0, quizzesCompleted = 0, onSearch, 
               View History
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem data-testid="menu-logout" className="text-destructive">
+            <DropdownMenuItem 
+              data-testid="menu-logout" 
+              className="text-destructive"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
               Log Out
             </DropdownMenuItem>
           </DropdownMenuContent>

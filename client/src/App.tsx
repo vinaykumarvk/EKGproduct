@@ -5,6 +5,8 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/auth-context";
+import ProtectedRoute from "@/components/protected-route";
 import { MainNavSidebar } from "@/components/main-nav-sidebar";
 import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
 import { TopHeader } from "@/components/top-header";
@@ -13,6 +15,7 @@ import WorkshopPage from "@/pages/workshop";
 import QuizPage from "@/pages/quiz";
 import AtlasPage from "@/pages/atlas";
 import RfpPage from "@/pages/rfp";
+import LoginPage from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import type { UserMastery } from "@shared/schema";
 
@@ -38,38 +41,47 @@ function Router() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      <TopHeader 
-        questionsAsked={0}
-        quizzesCompleted={masteryData?.totalQuizzesTaken || 0}
-        onSearch={handleSearch}
-        onMenuClick={toggleMobileMenu}
-      />
-      <div className="flex flex-1 overflow-hidden">
-        <MainNavSidebar className="hidden md:flex" />
-        <MobileNavDrawer isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
-        <Switch>
-          <Route path="/" component={ChatbotPage} />
-          <Route path="/workshop" component={WorkshopPage} />
-          <Route path="/quiz" component={QuizPage} />
-          <Route path="/atlas" component={AtlasPage} />
-          <Route path="/rfp" component={RfpPage} />
-          <Route component={NotFound} />
-        </Switch>
-      </div>
-    </div>
+    <Switch>
+      <Route path="/login" component={LoginPage} />
+      <Route>
+        <ProtectedRoute>
+          <div className="flex flex-col h-screen">
+            <TopHeader 
+              questionsAsked={0}
+              quizzesCompleted={masteryData?.totalQuizzesTaken || 0}
+              onSearch={handleSearch}
+              onMenuClick={toggleMobileMenu}
+            />
+            <div className="flex flex-1 overflow-hidden">
+              <MainNavSidebar className="hidden md:flex" />
+              <MobileNavDrawer isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+              <Switch>
+                <Route path="/" component={ChatbotPage} />
+                <Route path="/workshop" component={WorkshopPage} />
+                <Route path="/quiz" component={QuizPage} />
+                <Route path="/atlas" component={AtlasPage} />
+                <Route path="/rfp" component={RfpPage} />
+                <Route component={NotFound} />
+              </Switch>
+            </div>
+          </div>
+        </ProtectedRoute>
+      </Route>
+    </Switch>
   );
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ThemeProvider>
-          <Toaster />
-          <Router />
-        </ThemeProvider>
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <ThemeProvider>
+            <Toaster />
+            <Router />
+          </ThemeProvider>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
