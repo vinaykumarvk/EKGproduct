@@ -10,6 +10,7 @@ import {
   excelRequirementResponses,
   referenceResponses,
   historicalRfps,
+  sessions,
   type User, 
   type InsertUser, 
   type Conversation, 
@@ -28,15 +29,26 @@ import {
   type ExcelRequirementResponse,
   type InsertExcelRequirementResponse,
   type HistoricalRfp,
-  type InsertHistoricalRfp
+  type InsertHistoricalRfp,
+  type Session,
+  type InsertSession
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 
 export interface IStorage {
+  // User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserLastLogin(id: string): Promise<void>;
+  
+  // Session methods
+  createSession(session: InsertSession): Promise<Session>;
+  getSession(id: string): Promise<Session | undefined>;
+  getSessionWithUser(id: string): Promise<(Session & { user: User }) | undefined>;
+  deleteSession(id: string): Promise<void>;
+  deleteExpiredSessions(): Promise<void>;
   
   // Thread methods
   getThreads(): Promise<Thread[]>;
@@ -114,6 +126,53 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  async updateUserLastLogin(id: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ lastLogin: new Date() })
+      .where(eq(users.id, id));
+  }
+
+  // Session methods
+  async createSession(insertSession: InsertSession): Promise<Session> {
+    const [session] = await db
+      .insert(sessions)
+      .values(insertSession)
+      .returning();
+    return session;
+  }
+
+  async getSession(id: string): Promise<Session | undefined> {
+    const [session] = await db
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.id, id), gte(sessions.expiresAt, new Date())));
+    return session || undefined;
+  }
+
+  async getSessionWithUser(id: string): Promise<(Session & { user: User }) | undefined> {
+    const result = await db
+      .select()
+      .from(sessions)
+      .innerJoin(users, eq(sessions.userId, users.id))
+      .where(and(eq(sessions.id, id), gte(sessions.expiresAt, new Date())));
+    
+    if (result.length === 0) return undefined;
+    
+    return {
+      ...result[0].sessions,
+      user: result[0].users,
+    };
+  }
+
+  async deleteSession(id: string): Promise<void> {
+    await db.delete(sessions).where(eq(sessions.id, id));
+  }
+
+  async deleteExpiredSessions(): Promise<void> {
+    await db.delete(sessions).where(sql`${sessions.expiresAt} < NOW()`);
   }
 
   // Thread methods

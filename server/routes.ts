@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { querySchema, insertConversationSchema } from "@shared/schema";
 import { storage } from "./storage";
 import OpenAI from "openai";
+import { verifyPassword, generateSessionToken, getSessionExpiry } from "./auth";
+import { z } from "zod";
 
 const EKG_API_URL = "https://ekg-service-47249889063.europe-west6.run.app";
 
@@ -31,6 +33,112 @@ function cleanAnswer(markdown: string): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication middleware to check if user is logged in
+  const requireAuth = async (req: any, res: any, next: any) => {
+    const sessionId = req.cookies?.wf_session;
+    
+    if (!sessionId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const sessionWithUser = await storage.getSessionWithUser(sessionId);
+    
+    if (!sessionWithUser) {
+      return res.status(401).json({ error: "Invalid or expired session" });
+    }
+    
+    req.user = sessionWithUser.user;
+    req.sessionId = sessionId;
+    next();
+  };
+
+  // Login endpoint
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const loginSchema = z.object({
+        username: z.string().min(1),
+        password: z.string().min(1),
+      });
+      
+      const { username, password } = loginSchema.parse(req.body);
+      
+      // Get user by username
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      // Verify password
+      const isValid = await verifyPassword(password, user.password);
+      
+      if (!isValid) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      // Check if user is active
+      if (!user.isActive) {
+        return res.status(403).json({ error: "Account is inactive" });
+      }
+      
+      // Create session
+      const sessionToken = generateSessionToken();
+      const expiresAt = getSessionExpiry();
+      
+      await storage.createSession({
+        id: sessionToken,
+        userId: user.id,
+        expiresAt,
+      });
+      
+      // Update last login
+      await storage.updateUserLastLogin(user.id);
+      
+      // Set HTTP-only cookie
+      res.cookie("wf_session", sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        expires: expiresAt,
+      });
+      
+      // Return user data (without password)
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // Logout endpoint
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      const sessionId = req.cookies?.wf_session;
+      
+      if (sessionId) {
+        await storage.deleteSession(sessionId);
+      }
+      
+      res.clearCookie("wf_session");
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ error: "Logout failed" });
+    }
+  });
+
+  // Get current user endpoint
+  app.get("/api/auth/me", requireAuth, async (req: any, res) => {
+    try {
+      const { password: _, ...userWithoutPassword } = req.user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(500).json({ error: "Failed to get user" });
+    }
+  });
+
   // Main query endpoint - handles both new threads and follow-up questions
   app.post("/api/query", async (req, res) => {
     try {
