@@ -51,12 +51,21 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
       totalQuestions: number;
       correctAnswers: number;
     }) => {
-      return apiRequest("/api/quiz/submit", "POST", data);
+      console.log("🚀 Mutation executing with data:", data);
+      const result = await apiRequest("/api/quiz/submit", "POST", data);
+      console.log("✅ Mutation successful, result:", result);
+      return result;
     },
     onSuccess: () => {
+      console.log("✅ onSuccess callback triggered");
+      // Mark as submitted ONLY after successful API call
+      setSubmitted(true);
       // Invalidate mastery and quiz history queries to update the status bar and quiz cards
       queryClient.invalidateQueries({ queryKey: ["/api/mastery"] });
       queryClient.invalidateQueries({ queryKey: ["/api/quiz/history"] });
+    },
+    onError: (error) => {
+      console.error("❌ Quiz submission failed:", error);
     },
   });
 
@@ -236,6 +245,13 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
                     const score = calculateScore();
                     const category = questions[0].category;
                     console.log("🎯 Manual submit button clicked");
+                    console.log("📊 Quiz data to submit:", {
+                      topic,
+                      category,
+                      score: Math.round(score.percentage),
+                      totalQuestions: questions.length,
+                      correctAnswers: score.correct,
+                    });
                     submitQuizMutation.mutate({
                       topic,
                       category,
@@ -243,7 +259,6 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
                       totalQuestions: questions.length,
                       correctAnswers: score.correct,
                     });
-                    setSubmitted(true);
                   }}
                   disabled={submitQuizMutation.isPending}
                   className="w-full"
@@ -258,6 +273,14 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                 <p className="text-sm text-green-800 dark:text-green-200">
                   ✅ <strong>Quiz submitted successfully!</strong> Your progress has been saved.
+                </p>
+              </div>
+            )}
+            
+            {submitQuizMutation.isError && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-800 dark:text-red-200">
+                  ❌ <strong>Submission failed.</strong> Please try again or check the browser console for details.
                 </p>
               </div>
             )}
