@@ -225,6 +225,43 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
                 })}
               </div>
             </div>
+            
+            {!submitted && (
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-3">
+                  📊 <strong>Your quiz is ready to submit!</strong> Click the button below to save your results and update your progress.
+                </p>
+                <Button
+                  onClick={() => {
+                    const score = calculateScore();
+                    const category = questions[0].category;
+                    console.log("🎯 Manual submit button clicked");
+                    submitQuizMutation.mutate({
+                      topic,
+                      category,
+                      score: Math.round(score.percentage),
+                      totalQuestions: questions.length,
+                      correctAnswers: score.correct,
+                    });
+                    setSubmitted(true);
+                  }}
+                  disabled={submitQuizMutation.isPending}
+                  className="w-full"
+                  data-testid="button-submit-quiz"
+                >
+                  {submitQuizMutation.isPending ? "Submitting..." : "Submit Quiz Results"}
+                </Button>
+              </div>
+            )}
+            
+            {submitted && (
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-800 dark:text-green-200">
+                  ✅ <strong>Quiz submitted successfully!</strong> Your progress has been saved.
+                </p>
+              </div>
+            )}
+            
             <div className="flex gap-3">
               <Button onClick={onBack} variant="outline" className="flex-1" data-testid="button-back-to-quizzes">
                 <ArrowLeft className="w-4 h-4 mr-2" />
