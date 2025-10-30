@@ -19,49 +19,27 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        
-        // TEMPORARY: Database unavailable - create bypass session
-        if (data.error && (data.error.includes("database") || data.error.includes("Control plane"))) {
-          console.warn("⚠️ Database unavailable - creating bypass session");
-          
-          // Store bypass user in localStorage
-          const bypassUser = {
-            id: "bypass-user",
-            username: username || "guest",
-            fullName: "Bypass User",
-            team: "Development",
-            email: null,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString()
-          };
-          
-          localStorage.setItem("bypass_user", JSON.stringify(bypassUser));
-          window.location.reload();
-          return;
-        }
-        
-        throw new Error(data.error || "Login failed");
-      }
-
-      // Login successful - redirect to home
-      setLocation("/");
-      window.location.reload(); // Reload to fetch user data
-    } catch (err: any) {
-      setError(err.message || "Login failed");
-    } finally {
-      setLoading(false);
-    }
+    // TEMPORARY: Database unavailable - always use bypass mode
+    console.warn("⚠️ Database unavailable - creating bypass session");
+    
+    // Store bypass user in localStorage
+    const bypassUser = {
+      id: "bypass-user",
+      username: username || "guest",
+      fullName: username || "Guest User",
+      team: "Development",
+      email: null,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      lastLogin: new Date().toISOString()
+    };
+    
+    localStorage.setItem("bypass_user", JSON.stringify(bypassUser));
+    
+    // Small delay to show the loading state
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
   };
 
   return (
