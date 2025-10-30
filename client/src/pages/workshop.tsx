@@ -1,4 +1,4 @@
-import { Wrench, FileText, Upload, Network, Presentation, Clipboard, BookOpen } from "lucide-react";
+import { Wrench, FileEdit, FolderOpen, ListChecks, Clipboard, Shield, ScanSearch } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
 
@@ -6,34 +6,34 @@ export default function WorkshopPage() {
   const [, setLocation] = useLocation();
   const templates = [
     {
-      name: "New Report",
-      description: "Generate comprehensive financial or market analysis reports",
-      icon: FileText,
+      name: "Base Document Draft Creator",
+      description: "Create foundational documents for wealth management projects",
+      icon: FileEdit,
     },
     {
-      name: "Client Proposal",
-      description: "Craft compelling proposals for new clients or projects",
-      icon: Upload,
+      name: "Solution Document Workplace",
+      description: "Upload, read, edit, and work with solution documents",
+      icon: FolderOpen,
     },
     {
-      name: "Strategic Memo",
-      description: "Compose internal memos for strategic initiatives or announcements",
-      icon: Network,
+      name: "Test Case Scenarios Creator",
+      description: "Generate test cases using previously created documents",
+      icon: ListChecks,
     },
     {
-      name: "Presentation Deck",
-      description: "Create visually engaging presentations for meetings or conferences",
-      icon: Presentation,
-    },
-    {
-      name: "RFP Response",
+      name: "RFP Generator",
       description: "Develop detailed responses to Request for Proposals efficiently",
       icon: Clipboard,
     },
     {
-      name: "Case Study",
-      description: "Document successful projects and client outcomes",
-      icon: BookOpen,
+      name: "Market Regulation Checker",
+      description: "Check compliance with CIBIL, AMCs, SEBI, and other regulatory bodies",
+      icon: Shield,
+    },
+    {
+      name: "Gap Finder",
+      description: "Identify gaps between existing products and RFP requirements",
+      icon: ScanSearch,
     }
   ];
 
@@ -58,13 +58,13 @@ export default function WorkshopPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {templates.map((template) => {
               const Icon = template.icon;
-              const isRfpResponse = template.name === "RFP Response";
+              const isRfpGenerator = template.name === "RFP Generator";
               return (
                 <Card
                   key={template.name}
                   className="hover:shadow-lg hover:border-primary/50 transition-all cursor-pointer bg-card"
                   onClick={() => {
-                    if (isRfpResponse) {
+                    if (isRfpGenerator) {
                       setLocation("/rfp");
                     }
                   }}
