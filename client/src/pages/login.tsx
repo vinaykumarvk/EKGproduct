@@ -17,16 +17,23 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    
+    // Validate username is provided
+    if (!username || username.trim() === "") {
+      setError("Please enter a username");
+      return;
+    }
+    
     setLoading(true);
 
     // TEMPORARY: Database unavailable - always use bypass mode
-    console.warn("⚠️ Database unavailable - creating bypass session");
+    console.warn("⚠️ Database unavailable - creating bypass session for:", username);
     
     // Store bypass user in localStorage
     const bypassUser = {
-      id: "bypass-user",
-      username: username || "guest",
-      fullName: username || "Guest User",
+      id: `bypass-${username.toLowerCase()}`,
+      username: username.trim(),
+      fullName: username.trim(),
       team: "Development",
       email: null,
       isActive: true,
@@ -34,10 +41,12 @@ export default function LoginPage() {
       lastLogin: new Date().toISOString()
     };
     
+    console.log("✅ Bypass user created:", bypassUser);
     localStorage.setItem("bypass_user", JSON.stringify(bypassUser));
     
     // Small delay to show the loading state
     setTimeout(() => {
+      console.log("🔄 Reloading page to activate bypass session...");
       window.location.reload();
     }, 500);
   };
@@ -56,8 +65,11 @@ export default function LoginPage() {
           
           {/* Database connectivity notice */}
           <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <p className="text-xs text-amber-800 dark:text-amber-200 font-semibold mb-1">
+              ⚠️ Database Bypass Mode Active
+            </p>
             <p className="text-xs text-amber-800 dark:text-amber-200">
-              ⚠️ Database connectivity issue - Authentication temporarily bypassed. Enter any credentials to continue.
+              Enter <strong>ANY username</strong> (admin, user, test, etc.) and <strong>ANY password</strong> to continue. All usernames work equally.
             </p>
           </div>
         </CardHeader>
