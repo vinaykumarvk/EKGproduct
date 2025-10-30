@@ -5,7 +5,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider } from "@/contexts/auth-context";
+import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import ProtectedRoute from "@/components/protected-route";
 import { MainNavSidebar } from "@/components/main-nav-sidebar";
 import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
@@ -65,10 +65,25 @@ function ProtectedLayout() {
 }
 
 function Router() {
-  // TEMPORARY: Skip authentication due to database connectivity issues
-  return (
-    <ProtectedLayout />
-  );
+  const { user, loading } = useAuth();
+  
+  // TEMPORARY: While database is unavailable, show login page first
+  if (!user && !loading) {
+    return <LoginPage />;
+  }
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return <ProtectedLayout />;
 }
 
 function App() {

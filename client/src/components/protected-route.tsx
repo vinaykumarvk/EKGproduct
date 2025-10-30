@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { Redirect } from "wouter";
+import { ReactNode, useEffect } from "react";
+import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
 
 interface ProtectedRouteProps {
@@ -14,6 +14,24 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const bypassAuth = true;
 
   if (bypassAuth) {
+    // Wait for initial auth check
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center space-y-3">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // In bypass mode, redirect unauthenticated users to login
+    if (!user) {
+      return <Redirect to="/login" />;
+    }
+    
+    // Allow authenticated users through
     console.warn("⚠️ Authentication bypass is ENABLED. Database connectivity issue - authentication temporarily disabled.");
     return <>{children}</>;
   }
