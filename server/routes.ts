@@ -33,6 +33,66 @@ function cleanAnswer(markdown: string): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // TEMPORARY: Database initialization endpoint
+  app.get("/api/init-db", async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { users, sessions } = await import("@shared/schema");
+      const { sql } = await import("drizzle-orm");
+      const { hashPassword } = await import("./auth");
+      
+      // Create users table
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          username VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          full_name VARCHAR(255) NOT NULL,
+          email VARCHAR(255),
+          team VARCHAR(50) NOT NULL,
+          is_active BOOLEAN DEFAULT true NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          last_login TIMESTAMP
+        )
+      `);
+      
+      // Create sessions table
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id VARCHAR(255) PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          expires_at TIMESTAMP NOT NULL
+        )
+      `);
+      
+      // Seed sample users
+      const sampleUsers = [
+        { username: "admin", password: "Admin@2025", fullName: "Admin User", team: "admin", email: "admin@wealthforce.com" },
+        { username: "presales", password: "Presales@2025", fullName: "John Smith", team: "presales", email: "john.smith@wealthforce.com" },
+        { username: "ba_analyst", password: "BA@2025", fullName: "Sarah Johnson", team: "ba", email: "sarah.johnson@wealthforce.com" },
+        { username: "manager", password: "Manager@2025", fullName: "Michael Chen", team: "management", email: "michael.chen@wealthforce.com" },
+      ];
+      
+      for (const userData of sampleUsers) {
+        const hashedPassword = await hashPassword(userData.password);
+        await db.execute(sql`
+          INSERT INTO users (username, password, full_name, email, team, is_active)
+          VALUES (${userData.username}, ${hashedPassword}, ${userData.fullName}, ${userData.email}, ${userData.team}, true)
+          ON CONFLICT (username) DO NOTHING
+        `);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Database initialized successfully! You can now login with: admin/Admin@2025, presales/Presales@2025, ba_analyst/BA@2025, or manager/Manager@2025" 
+      });
+    } catch (error: any) {
+      console.error("Database initialization error:", error);
+      res.status(500).json({ error: "Failed to initialize database", details: error.message });
+    }
+  });
+
   // Authentication middleware to check if user is logged in
   const requireAuth = async (req: any, res: any, next: any) => {
     const sessionId = req.cookies?.wf_session;
