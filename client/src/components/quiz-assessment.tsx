@@ -52,7 +52,7 @@ export default function QuizAssessment({ topic, onBack }: QuizAssessmentProps) {
       correctAnswers: number;
     }) => {
       console.log("🚀 Mutation executing with data:", data);
-      const result = await apiRequest("/api/quiz/submit", "POST", data);
+      const result = await apiRequest("POST", "/api/quiz/submit", data);
       console.log("✅ Mutation successful, result:", result);
       return result;
     },
