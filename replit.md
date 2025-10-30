@@ -46,7 +46,7 @@ The UI features a comprehensive layout comprising a **Global Top Header**, a **M
         - **Tier 2 (EKG Fallback)**: When no historical match found, query existing EKG service for knowledge-grounded responses
         - **Storage Interface**: Complete CRUD methods including `searchHistoricalRfpsBySimilarity()` for vector search
         - **Next Steps**: Populate historical RFPs, implement embedding service, integrate two-tier retrieval into response generation (see RFP_RAG_IMPLEMENTATION_ROADMAP.md)
--   **Quiz Question Bank**: 70 Order Management questions stored in PostgreSQL across 6 topics (Introduction, SEBI Compliance, Order Journey, SIP/SWP/STP, API Integration, Exception Handling) with 3 difficulty levels (Easy: 25, Medium: 25, Hard: 20).
+-   **Quiz Question Bank**: 100 Order Management questions stored in PostgreSQL across 10 topics with 10 questions each. Topics include: Order Flow Fundamentals, Order Capture & Document Validation, Order Modification & Cancellation, Partial Confirmations & Status, Account Management & FIFO, Reconciliation Process, Pre-Trade Validations, Order Execution & Settlement, Transaction Management & Alerts, and Advanced Validations & Partial Confirmations. Questions feature 4 difficulty levels (1-4) and are randomized on each quiz attempt using ORDER BY RANDOM().
 -   **Quiz & Assessment Dual-Mode System**: Tab-based interface offering:
     -   **Structured Quiz**: Individual topic-based quizzes with real-time question fetching from PostgreSQL. Each quiz displays:
         - Question-by-question navigation with progress tracking
