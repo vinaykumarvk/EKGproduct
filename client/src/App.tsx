@@ -19,7 +19,7 @@ import LoginPage from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import type { UserMastery } from "@shared/schema";
 
-function Router() {
+function ProtectedLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Fetch mastery data for header stats
@@ -41,30 +41,36 @@ function Router() {
   };
 
   return (
+    <div className="flex flex-col h-screen">
+      <TopHeader 
+        questionsAsked={0}
+        quizzesCompleted={masteryData?.totalQuizzesTaken || 0}
+        onSearch={handleSearch}
+        onMenuClick={toggleMobileMenu}
+      />
+      <div className="flex flex-1 overflow-hidden">
+        <MainNavSidebar className="hidden md:flex" />
+        <MobileNavDrawer isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+        <Switch>
+          <Route path="/" component={ChatbotPage} />
+          <Route path="/workshop" component={WorkshopPage} />
+          <Route path="/quiz" component={QuizPage} />
+          <Route path="/atlas" component={AtlasPage} />
+          <Route path="/rfp" component={RfpPage} />
+          <Route component={NotFound} />
+        </Switch>
+      </div>
+    </div>
+  );
+}
+
+function Router() {
+  return (
     <Switch>
       <Route path="/login" component={LoginPage} />
-      <Route>
+      <Route path="/:rest*">
         <ProtectedRoute>
-          <div className="flex flex-col h-screen">
-            <TopHeader 
-              questionsAsked={0}
-              quizzesCompleted={masteryData?.totalQuizzesTaken || 0}
-              onSearch={handleSearch}
-              onMenuClick={toggleMobileMenu}
-            />
-            <div className="flex flex-1 overflow-hidden">
-              <MainNavSidebar className="hidden md:flex" />
-              <MobileNavDrawer isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
-              <Switch>
-                <Route path="/" component={ChatbotPage} />
-                <Route path="/workshop" component={WorkshopPage} />
-                <Route path="/quiz" component={QuizPage} />
-                <Route path="/atlas" component={AtlasPage} />
-                <Route path="/rfp" component={RfpPage} />
-                <Route component={NotFound} />
-              </Switch>
-            </div>
-          </div>
+          <ProtectedLayout />
         </ProtectedRoute>
       </Route>
     </Switch>

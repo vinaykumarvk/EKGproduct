@@ -64,7 +64,8 @@ app.use((req, res, next) => {
   }
 
   // Seed sample users on startup
-  await seedUsers();
+  // Temporarily commented out due to database connectivity issues
+  // await seedUsers();
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.

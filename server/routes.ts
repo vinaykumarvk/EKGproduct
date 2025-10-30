@@ -120,7 +120,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.deleteSession(sessionId);
       }
       
-      res.clearCookie("wf_session");
+      // Clear cookie with same security attributes as login
+      res.clearCookie("wf_session", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      });
       res.json({ success: true });
     } catch (error) {
       console.error("Logout error:", error);
