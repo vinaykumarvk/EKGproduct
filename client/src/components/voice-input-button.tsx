@@ -65,7 +65,8 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isHoldingRef = useRef(false);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Check if browser supports Web Speech API
@@ -74,26 +75,23 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
     }
   }, []);
 
-  const stopRecordingWithTranscript = (finalText: string) => {
+  const stopRecording = () => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
     
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
     }
     
     setIsRecording(false);
-    setTranscript('');
-    
-    if (finalText.trim()) {
-      onTranscriptionComplete(finalText.trim());
-    }
+    isHoldingRef.current = false;
   };
 
-  const startRecording = () => {
+  // Quick tap mode - auto-stop after short silence
+  const startQuickMode = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       console.warn('Voice input not supported in this browser');
       return;
@@ -103,25 +101,11 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
 
-      // Use continuous mode for handling pauses
-      recognition.continuous = true;
+      recognition.continuous = false; // Auto-stops after silence
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       let finalTranscript = '';
-      const SILENCE_TIMEOUT = 4500; // 4.5 seconds of silence
-
-      const resetSilenceTimer = () => {
-        // Clear existing timer
-        if (silenceTimerRef.current) {
-          clearTimeout(silenceTimerRef.current);
-        }
-        
-        // Start new timer - stop recording after silence
-        silenceTimerRef.current = setTimeout(() => {
-          stopRecordingWithTranscript(finalTranscript);
-        }, SILENCE_TIMEOUT);
-      };
 
       recognition.onresult = (event) => {
         let interimTranscript = '';
@@ -136,22 +120,77 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
         }
 
         setTranscript(finalTranscript + interimTranscript);
-        
-        // Reset silence timer whenever speech is detected
-        resetSilenceTimer();
       };
 
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        if (event.error !== 'no-speech' && event.error !== 'aborted') {
-          stopRecordingWithTranscript(finalTranscript);
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+        if (finalTranscript.trim()) {
+          onTranscriptionComplete(finalTranscript.trim());
+        }
+        setTranscript('');
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setIsRecording(true);
+      setTranscript('');
+    } catch (error) {
+      console.error('Error starting recording:', error);
+    }
+  };
+
+  // Hold mode - continuous recording while button is pressed
+  const startHoldMode = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      console.warn('Voice input not supported in this browser');
+      return;
+    }
+
+    try {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+
+      recognition.continuous = true; // Keep recording
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      let finalTranscript = '';
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        setTranscript(finalTranscript + interimTranscript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'aborted') {
+          setIsRecording(false);
+          isHoldingRef.current = false;
         }
       };
 
       recognition.onend = () => {
-        // Only process if not already stopped by silence timer
-        if (isRecording) {
-          stopRecordingWithTranscript(finalTranscript);
+        if (!isHoldingRef.current) {
+          setIsRecording(false);
+          if (finalTranscript.trim()) {
+            onTranscriptionComplete(finalTranscript.trim());
+          }
+          setTranscript('');
         }
       };
 
@@ -159,19 +198,50 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
       recognition.start();
       setIsRecording(true);
       setTranscript('');
-      
-      // Start initial silence timer
-      resetSilenceTimer();
     } catch (error) {
       console.error('Error starting recording:', error);
+    }
+  };
+
+  const handleMouseDown = () => {
+    if (disabled || isRecording) return;
+
+    // Set a timer to detect if this is a hold (300ms threshold)
+    holdTimerRef.current = setTimeout(() => {
+      isHoldingRef.current = true;
+      startHoldMode();
+    }, 300);
+  };
+
+  const handleMouseUp = () => {
+    if (disabled) return;
+
+    // Clear the hold detection timer
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    // If we were holding, stop recording
+    if (isHoldingRef.current) {
+      stopRecording();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      return;
+    }
+
+    // If not holding and not recording yet, it's a quick tap
+    if (!isRecording) {
+      startQuickMode();
     }
   };
   
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
       }
       if (recognitionRef.current) {
         recognitionRef.current.stop();
@@ -184,8 +254,11 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
       <TooltipTrigger asChild>
         <Button
           data-testid="button-voice-input"
-          onClick={startRecording}
-          disabled={disabled || isRecording}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onTouchStart={handleMouseDown}
+          onTouchEnd={handleMouseUp}
+          disabled={disabled}
           variant={isRecording ? "default" : "outline"}
           size="lg"
           className={`h-[60px] w-[60px] p-0 ${
@@ -199,7 +272,9 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
         <p className="text-sm">
           {isRecording 
             ? transcript || "Listening... speak now" 
-            : "Click to start voice input"}
+            : isHoldingRef.current 
+              ? "Hold to keep recording..."
+              : "Tap for quick input • Hold for long input"}
         </p>
       </TooltipContent>
     </Tooltip>
