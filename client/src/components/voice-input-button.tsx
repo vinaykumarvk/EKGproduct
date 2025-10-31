@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Mic, Loader2, Square } from "lucide-react";
+import { Mic, Square } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Tooltip,
@@ -13,78 +13,138 @@ interface VoiceInputButtonProps {
   disabled?: boolean;
 }
 
+// Web Speech API types
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+declare var SpeechRecognition: {
+  prototype: SpeechRecognition;
+  new(): SpeechRecognition;
+};
+
 export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInputButtonProps) {
   const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const [transcript, setTranscript] = useState('');
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-        } 
+  useEffect(() => {
+    // Check if browser supports Web Speech API
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      console.warn('Web Speech API not supported in this browser');
+    }
+  }, []);
+
+  const startRecording = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast({
+        title: "Not Supported",
+        description: "Voice input is not supported in this browser. Please use Chrome or Edge.",
+        variant: "destructive",
       });
+      return;
+    }
 
-      audioChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(stream);
+    try {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      let finalTranscript = '';
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
         }
+
+        setTranscript(finalTranscript + interimTranscript);
       };
 
-      mediaRecorder.onstop = async () => {
-        setIsProcessing(true);
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
         
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        
-        // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
-
-        try {
-          const formData = new FormData();
-          formData.append('audio', audioBlob, 'recording.webm');
-
-          const response = await fetch('/api/voice/transcribe', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!response.ok) {
-            throw new Error('Transcription failed');
-          }
-
-          const data = await response.json();
-          
-          if (data.text) {
-            onTranscriptionComplete(data.text);
-            toast({
-              title: "Voice Input Complete",
-              description: "Your question has been transcribed successfully.",
-            });
-          } else {
-            throw new Error('No transcription received');
-          }
-        } catch (error) {
-          console.error('Transcription error:', error);
+        if (event.error === 'not-allowed') {
           toast({
-            title: "Transcription Failed",
-            description: "Could not transcribe your audio. Please try again or type your question.",
+            title: "Microphone Access Denied",
+            description: "Please allow microphone access to use voice input.",
             variant: "destructive",
           });
-        } finally {
-          setIsProcessing(false);
+        } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          toast({
+            title: "Voice Input Error",
+            description: `Error: ${event.error}. Please try again.`,
+            variant: "destructive",
+          });
         }
       };
 
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start(100);
+      recognition.onend = () => {
+        setIsRecording(false);
+        if (finalTranscript.trim()) {
+          onTranscriptionComplete(finalTranscript.trim());
+          toast({
+            title: "Voice Input Complete",
+            description: "Your question has been transcribed.",
+          });
+        }
+        setTranscript('');
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
       setIsRecording(true);
+      setTranscript('');
 
       toast({
         title: "Recording Started",
@@ -93,17 +153,17 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
     } catch (error) {
       console.error('Error starting recording:', error);
       toast({
-        title: "Microphone Access Denied",
-        description: "Please allow microphone access to use voice input.",
+        title: "Failed to Start Recording",
+        description: "Please try again or type your question.",
         variant: "destructive",
       });
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
     }
   };
 
@@ -121,28 +181,24 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
         <Button
           data-testid="button-voice-input"
           onClick={handleToggle}
-          disabled={disabled || isProcessing}
+          disabled={disabled}
           variant={isRecording ? "default" : "outline"}
           size="lg"
           className={`h-[60px] w-[60px] p-0 ${
             isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''
           }`}
         >
-          {isProcessing ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : isRecording ? (
+          {isRecording ? (
             <Square className="w-5 h-5" />
           ) : (
             <Mic className="w-5 h-5" />
           )}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="top">
+      <TooltipContent side="top" className="max-w-xs">
         <p className="text-sm">
-          {isProcessing 
-            ? "Transcribing your audio..." 
-            : isRecording 
-            ? "Click to stop recording" 
+          {isRecording 
+            ? transcript || "Listening... speak now" 
             : "Click to start voice input"}
         </p>
       </TooltipContent>
