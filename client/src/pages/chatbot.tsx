@@ -50,6 +50,7 @@ import remarkGfm from "remark-gfm";
 import { ThreadSidebar } from "@/components/thread-sidebar";
 import { AIConfigSidebar, type AIConfig } from "@/components/ai-config-sidebar";
 import { QuizMessage } from "@/components/quiz-message";
+import { VoiceInputButton } from "@/components/voice-input-button";
 import type { Thread, Message } from "@shared/schema";
 import type { QuizData } from "@/types/quiz";
 
@@ -939,11 +940,19 @@ export default function ChatbotPage() {
             <div className="flex gap-3 items-end">
               <Textarea
                 data-testid="input-question"
-                placeholder="Ask a follow-up question..."
+                placeholder="Ask a follow-up question or use voice input..."
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={handleKeyDown}
                 className="flex-1 min-h-[60px] max-h-[200px] resize-none"
+                disabled={isLoading}
+              />
+              
+              {/* Voice Input Button */}
+              <VoiceInputButton
+                onTranscriptionComplete={(text) => {
+                  setQuestion(text);
+                }}
                 disabled={isLoading}
               />
               
