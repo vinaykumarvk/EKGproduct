@@ -5,6 +5,8 @@ import { storage } from "./storage";
 import OpenAI from "openai";
 import { verifyPassword, generateSessionToken, getSessionExpiry } from "./auth";
 import { z } from "zod";
+import multer from "multer";
+import fs from "fs/promises";
 
 const EKG_API_URL = "https://ekg-service-47249889063.europe-west6.run.app";
 
@@ -12,6 +14,14 @@ const EKG_API_URL = "https://ekg-service-47249889063.europe-west6.run.app";
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
+
+// Configure multer for audio file uploads (memory storage)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max
+  },
 });
 
 // Helper function to clean answer text by removing formatting noise
@@ -201,6 +211,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({ error: "Failed to get user" });
+    }
+  });
+
+  // Voice transcription endpoint using OpenAI Whisper
+  app.post("/api/voice/transcribe", upload.single('audio'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No audio file provided" });
+      }
+
+      console.log("Received audio file for transcription:", {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      });
+
+      // Create a temporary file from the buffer
+      const tempFilePath = `/tmp/audio-${Date.now()}.webm`;
+      await fs.writeFile(tempFilePath, req.file.buffer);
+
+      try {
+        // Use OpenAI Whisper API for transcription
+        const transcription = await openai.audio.transcriptions.create({
+          file: await fs.readFile(tempFilePath).then(buffer => {
+            return new File([buffer], req.file!.originalname, { 
+              type: req.file!.mimetype 
+            });
+          }),
+          model: "whisper-1",
+          language: "en",
+          response_format: "json",
+        });
+
+        // Clean up temp file
+        await fs.unlink(tempFilePath).catch(() => {});
+
+        console.log("Transcription successful:", transcription.text.substring(0, 100));
+
+        res.json({ 
+          text: transcription.text,
+          success: true,
+        });
+      } catch (whisperError) {
+        // Clean up temp file on error
+        await fs.unlink(tempFilePath).catch(() => {});
+        throw whisperError;
+      }
+    } catch (error) {
+      console.error("Transcription error:", error);
+      res.status(500).json({ 
+        error: "Failed to transcribe audio",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
