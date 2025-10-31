@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Mic, Square } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import {
   Tooltip,
   TooltipContent,
@@ -63,7 +62,6 @@ declare var SpeechRecognition: {
 };
 
 export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInputButtonProps) {
-  const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -77,11 +75,7 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
 
   const startRecording = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast({
-        title: "Not Supported",
-        description: "Voice input is not supported in this browser. Please use Chrome or Edge.",
-        variant: "destructive",
-      });
+      console.warn('Voice input not supported in this browser');
       return;
     }
 
@@ -113,30 +107,12 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         setIsRecording(false);
-        
-        if (event.error === 'not-allowed') {
-          toast({
-            title: "Microphone Access Denied",
-            description: "Please allow microphone access to use voice input.",
-            variant: "destructive",
-          });
-        } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
-          toast({
-            title: "Voice Input Error",
-            description: `Error: ${event.error}. Please try again.`,
-            variant: "destructive",
-          });
-        }
       };
 
       recognition.onend = () => {
         setIsRecording(false);
         if (finalTranscript.trim()) {
           onTranscriptionComplete(finalTranscript.trim());
-          toast({
-            title: "Voice Input Complete",
-            description: "Your question has been transcribed.",
-          });
         }
         setTranscript('');
       };
@@ -145,18 +121,8 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
       recognition.start();
       setIsRecording(true);
       setTranscript('');
-
-      toast({
-        title: "Recording Started",
-        description: "Speak your question clearly...",
-      });
     } catch (error) {
       console.error('Error starting recording:', error);
-      toast({
-        title: "Failed to Start Recording",
-        description: "Please try again or type your question.",
-        variant: "destructive",
-      });
     }
   };
 
