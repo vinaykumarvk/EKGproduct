@@ -342,3 +342,288 @@ export const referenceResponsesRelations = relations(referenceResponses, ({ one 
     references: [excelRequirementResponses.id],
   }),
 }));
+
+// ===== Investment Portal Tables =====
+
+// Investment requests table
+export const investmentRequests = pgTable("investment_requests", {
+  id: serial("id").primaryKey(),
+  requestId: text("request_id").notNull().unique(), // INV-2025-001
+  requesterId: varchar("requester_id").references(() => users.id), // Changed to varchar for UUID
+  targetCompany: text("target_company").notNull(),
+  investmentType: text("investment_type").notNull(), // equity, debt, real_estate, alternative
+  amount: text("amount").notNull(), // Using text instead of decimal for simplicity
+  expectedReturn: text("expected_return"),
+  expectedReturnMin: text("expected_return_min"),
+  expectedReturnMax: text("expected_return_max"),
+  expectedReturnType: text("expected_return_type").default("absolute"), // 'absolute' or 'range'
+  description: text("description"),
+  enhancedDescription: text("enhanced_description"), // AI-enhanced version of description
+  riskLevel: text("risk_level").notNull(), // low, medium, high
+  status: text("status").notNull().default("draft"), // draft, opportunity, new, approved, rejected, changes_requested
+  currentApprovalStage: integer("current_approval_stage").default(0),
+  slaDeadline: timestamp("sla_deadline"),
+  deletedAt: timestamp("deleted_at"), // Soft delete timestamp
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  currentApprovalCycle: integer("current_approval_cycle").notNull().default(1), // Track current submission cycle
+});
+
+// Individual approval records
+export const approvals = pgTable("approvals", {
+  id: serial("id").primaryKey(),
+  requestType: text("request_type").notNull(), // investment, cash_request
+  requestId: integer("request_id").notNull(),
+  stage: integer("stage").notNull(),
+  approverId: varchar("approver_id").references(() => users.id), // Changed to varchar for UUID
+  status: text("status").notNull(), // pending, approved, rejected, changes_requested
+  comments: text("comments"),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  approvalCycle: integer("approval_cycle").notNull().default(1), // Track which submission cycle
+  isCurrentCycle: boolean("is_current_cycle").notNull().default(true), // Whether this is part of current active cycle
+});
+
+// Tasks table
+export const tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
+  assigneeId: varchar("assignee_id").references(() => users.id), // Changed to varchar for UUID
+  requestType: text("request_type").notNull(), // investment, cash_request
+  requestId: integer("request_id").notNull(),
+  taskType: text("task_type").notNull(), // approval, review, changes_requested
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"), // pending, completed, overdue
+  priority: text("priority").default("medium"), // low, medium, high
+  dueDate: timestamp("due_date"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Document categories table
+export const documentCategories = pgTable("document_categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  icon: text("icon").default("📄"), // emoji icon for display
+  isActive: boolean("is_active").default(true),
+  isSystem: boolean("is_system").default(false), // system vs user-created
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Documents table
+export const documents = pgTable("documents", {
+  id: serial("id").primaryKey(),
+  fileName: text("file_name").notNull(),
+  originalName: text("original_name").notNull(),
+  fileSize: integer("file_size").notNull(),
+  mimeType: text("mime_type").notNull(),
+  fileUrl: text("file_url").notNull(),
+  uploaderId: varchar("uploader_id").references(() => users.id), // Changed to varchar for UUID
+  requestType: text("request_type").notNull(), // investment, cash_request
+  requestId: integer("request_id").notNull(),
+  categoryId: integer("category_id").references(() => documentCategories.id),
+  subcategoryId: integer("subcategory_id"),
+  isAutoCategorized: boolean("is_auto_categorized").default(false), // AI vs manual categorization
+  analysisStatus: text("analysis_status").default("pending"), // pending, processing, completed, failed
+  analysisResult: text("analysis_result"), // JSON string with analysis results
+  classification: text("classification"), // document type classification
+  extractedText: text("extracted_text"), // extracted text content
+  keyInformation: text("key_information"), // JSON string with key extracted info
+  riskLevel: text("risk_level"), // low, medium, high
+  confidence: text("confidence"), // analysis confidence score
+  createdAt: timestamp("created_at").defaultNow(),
+  analyzedAt: timestamp("analyzed_at"),
+});
+
+// Document-category associations table (for multiple categories per document)
+export const documentCategoryAssociations = pgTable("document_category_associations", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  categoryId: integer("category_id").references(() => documentCategories.id).notNull(),
+  customCategoryName: text("custom_category_name"), // for "Others" category with custom name
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id), // Changed to varchar for UUID
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull(), // task_assigned, approval_needed, sla_warning, status_update
+  isRead: boolean("is_read").default(false),
+  relatedType: text("related_type"), // investment, cash_request, task
+  relatedId: integer("related_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Templates table
+export const templates = pgTable("templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // investment, cash_request
+  investmentType: text("investment_type"), // equity, debt, real_estate, alternative
+  templateData: text("template_data").notNull(), // JSON string with sections and word limits
+  createdBy: varchar("created_by").references(() => users.id), // Changed to varchar for UUID
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Investment rationales table
+export const investmentRationales = pgTable("investment_rationales", {
+  id: serial("id").primaryKey(),
+  investmentId: integer("investment_id").references(() => investmentRequests.id).notNull(),
+  content: text("content").notNull(),
+  type: text("type").notNull(), // manual, ai_generated
+  templateId: integer("template_id").references(() => templates.id),
+  authorId: varchar("author_id").references(() => users.id), // Changed to varchar for UUID
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Background jobs table
+export const backgroundJobs = pgTable("background_jobs", {
+  id: serial("id").primaryKey(),
+  jobType: varchar("job_type", { length: 50 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, processing, completed, failed
+  currentStep: varchar("current_step", { length: 50 }).default("queued"),
+  stepProgress: integer("step_progress").default(0), // 0-100 percentage for current step
+  totalSteps: integer("total_steps").default(4),
+  currentStepNumber: integer("current_step_number").default(0),
+  documentId: integer("document_id").references(() => documents.id),
+  requestType: varchar("request_type", { length: 50 }),
+  requestId: integer("request_id"),
+  priority: varchar("priority", { length: 10 }).notNull().default("normal"),
+  attempts: integer("attempts").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(3),
+  errorMessage: text("error_message"),
+  result: text("result"),
+  createdAt: timestamp("created_at").defaultNow(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+// Document queries table
+export const documentQueries = pgTable("document_queries", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").references(() => documents.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(), // Changed to varchar for UUID
+  query: text("query").notNull(),
+  response: text("response").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Cross-document queries table
+export const crossDocumentQueries = pgTable("cross_document_queries", {
+  id: serial("id").primaryKey(),
+  requestType: text("request_type").notNull(), // investment, cash_request
+  requestId: integer("request_id").notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(), // Changed to varchar for UUID
+  query: text("query").notNull(),
+  response: text("response").notNull(),
+  documentCount: integer("document_count").notNull().default(0),
+  openaiResponseId: text("openai_response_id"),
+  openaiModel: text("openai_model"),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  totalTokens: integer("total_tokens"),
+  processingTimeMs: integer("processing_time_ms"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Web search queries table
+export const webSearchQueries = pgTable("web_search_queries", {
+  id: serial("id").primaryKey(),
+  requestType: text("request_type").notNull(), // investment, cash_request
+  requestId: integer("request_id").notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(), // Changed to varchar for UUID
+  query: text("query").notNull(),
+  response: text("response").notNull(),
+  searchType: text("search_type").notNull().default("web_search"),
+  openaiResponseId: text("openai_response_id"),
+  openaiModel: text("openai_model"),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  totalTokens: integer("total_tokens"),
+  processingTimeMs: integer("processing_time_ms"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Sequences table - for sequential ID generation
+export const sequences = pgTable("sequences", {
+  id: serial("id").primaryKey(),
+  sequenceName: text("sequence_name").notNull().unique(), // 'INV', 'CASH', etc.
+  currentValue: integer("current_value").notNull().default(0),
+  year: integer("year").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Investment Portal Zod Schemas
+export const insertInvestmentRequestSchema = createInsertSchema(investmentRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertApprovalSchema = createInsertSchema(approvals).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDocumentCategorySchema = createInsertSchema(documentCategories).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDocumentSchema = createInsertSchema(documents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTemplateSchema = createInsertSchema(templates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInvestmentRationaleSchema = createInsertSchema(investmentRationales).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Investment Portal Types
+export type InsertInvestmentRequest = z.infer<typeof insertInvestmentRequestSchema>;
+export type InvestmentRequest = typeof investmentRequests.$inferSelect;
+
+export type InsertApproval = z.infer<typeof insertApprovalSchema>;
+export type Approval = typeof approvals.$inferSelect;
+
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type Task = typeof tasks.$inferSelect;
+
+export type InsertDocumentCategory = z.infer<typeof insertDocumentCategorySchema>;
+export type DocumentCategory = typeof documentCategories.$inferSelect;
+
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+export type Document = typeof documents.$inferSelect;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
+export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
+export type Template = typeof templates.$inferSelect;
+
+export type InsertInvestmentRationale = z.infer<typeof insertInvestmentRationaleSchema>;
+export type InvestmentRationale = typeof investmentRationales.$inferSelect;

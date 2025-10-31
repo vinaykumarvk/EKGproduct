@@ -11,6 +11,16 @@ import {
   referenceResponses,
   historicalRfps,
   sessions,
+  investmentRequests,
+  approvals,
+  tasks,
+  documents,
+  documentCategories,
+  documentCategoryAssociations,
+  notifications,
+  templates,
+  investmentRationales,
+  sequences,
   type User, 
   type InsertUser, 
   type Conversation, 
@@ -31,10 +41,26 @@ import {
   type HistoricalRfp,
   type InsertHistoricalRfp,
   type Session,
-  type InsertSession
+  type InsertSession,
+  type InvestmentRequest,
+  type InsertInvestmentRequest,
+  type Approval,
+  type InsertApproval,
+  type Task,
+  type InsertTask,
+  type Document,
+  type InsertDocument,
+  type DocumentCategory,
+  type InsertDocumentCategory,
+  type Notification,
+  type InsertNotification,
+  type Template,
+  type InsertTemplate,
+  type InvestmentRationale,
+  type InsertInvestmentRationale
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, sql, or, ne, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
