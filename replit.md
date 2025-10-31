@@ -25,7 +25,8 @@ The UI features a comprehensive layout comprising a Global Top Header, Main Navi
 ### Feature Specifications
 -   **Global Header**: Displays "Questions Asked" and "Quizzes Completed" counters, global search, and user menu.
 -   **Multi-Section Navigation**: Includes "Conversation", "Launchpad", "Quiz", and "Atlas" sections.
--   **Launchpad Templates**: 6 pre-developed templates (e.g., New Report, Client Proposal).
+-   **Launchpad Templates**: 6 pre-developed templates including Investment Portal and RFP Generator.
+-   **Investment Portal**: Complete unified investment management system accessible from Launchpad. Features dedicated left sidebar navigation with 5 sections: Dashboard (overview & analytics), New Investment (AI-assisted proposal creation), My Investments (request tracking), My Tasks (approvals & actions), Templates (proposal templates). Built as self-contained application with 15 database tables, 45+ storage CRUD methods, 280+ lines of REST API routes. Supports document upload, AI-generated investment memos, approval workflows, and comprehensive tracking.
 -   **RFP Response Generator**: Full-stack system with Excel upload for requirements, tab-based viewing, reference panel, export functionality (Markdown, Excel, PDF, Email), PostgreSQL tables, RESTful API, and AI response generation (OpenAI GPT-5 via Replit AI Integrations). Features a Two-Tier RAG Architecture using `pgvector` for historical RFP similarity search and an EKG fallback.
 -   **Quiz Question Bank**: 100 Order Management questions across 10 topics in PostgreSQL, with 4 difficulty levels and randomized attempts.
 -   **Quiz & Assessment Dual-Mode System**: Offers Structured Quizzes (topic-based, real-time fetching, multiple choice, difficulty indicators, scoring, review, retake) and Flashcards (self-paced study decks).

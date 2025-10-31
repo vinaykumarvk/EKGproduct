@@ -58,7 +58,11 @@ function ProtectedLayout() {
           <Route path="/quiz" component={QuizPage} />
           <Route path="/atlas" component={AtlasPage} />
           <Route path="/rfp" component={RfpPage} />
-          <Route path="/investment-portal/:rest*" component={InvestmentPortal} />
+          <Route path="/investment-portal" component={InvestmentPortal} />
+          <Route path="/investment-portal/new" component={InvestmentPortal} />
+          <Route path="/investment-portal/investments" component={InvestmentPortal} />
+          <Route path="/investment-portal/tasks" component={InvestmentPortal} />
+          <Route path="/investment-portal/templates" component={InvestmentPortal} />
           <Route component={NotFound} />
         </Switch>
       </div>

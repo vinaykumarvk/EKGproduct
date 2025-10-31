@@ -51,7 +51,8 @@ interface ProposalFilters {
 }
 
 export default function Dashboard() {
-  const { data: user } = useUser();
+  const userQuery = useUser();
+  const user = userQuery?.data;
   
   // Section visibility state
   const [sectionsCollapsed, setSectionsCollapsed] = useState({
