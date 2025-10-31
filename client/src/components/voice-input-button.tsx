@@ -65,6 +65,7 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Check if browser supports Web Speech API
@@ -72,6 +73,25 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
       console.warn('Web Speech API not supported in this browser');
     }
   }, []);
+
+  const stopRecordingWithTranscript = (finalText: string) => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    
+    setIsRecording(false);
+    setTranscript('');
+    
+    if (finalText.trim()) {
+      onTranscriptionComplete(finalText.trim());
+    }
+  };
 
   const startRecording = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -83,12 +103,25 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
 
-      // Set to false for automatic stop after silence
-      recognition.continuous = false;
+      // Use continuous mode for handling pauses
+      recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       let finalTranscript = '';
+      const SILENCE_TIMEOUT = 4500; // 4.5 seconds of silence
+
+      const resetSilenceTimer = () => {
+        // Clear existing timer
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+        
+        // Start new timer - stop recording after silence
+        silenceTimerRef.current = setTimeout(() => {
+          stopRecordingWithTranscript(finalTranscript);
+        }, SILENCE_TIMEOUT);
+      };
 
       recognition.onresult = (event) => {
         let interimTranscript = '';
@@ -103,29 +136,48 @@ export function VoiceInputButton({ onTranscriptionComplete, disabled }: VoiceInp
         }
 
         setTranscript(finalTranscript + interimTranscript);
+        
+        // Reset silence timer whenever speech is detected
+        resetSilenceTimer();
       };
 
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          stopRecordingWithTranscript(finalTranscript);
+        }
       };
 
       recognition.onend = () => {
-        setIsRecording(false);
-        if (finalTranscript.trim()) {
-          onTranscriptionComplete(finalTranscript.trim());
+        // Only process if not already stopped by silence timer
+        if (isRecording) {
+          stopRecordingWithTranscript(finalTranscript);
         }
-        setTranscript('');
       };
 
       recognitionRef.current = recognition;
       recognition.start();
       setIsRecording(true);
       setTranscript('');
+      
+      // Start initial silence timer
+      resetSilenceTimer();
     } catch (error) {
       console.error('Error starting recording:', error);
     }
   };
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   return (
     <Tooltip>
