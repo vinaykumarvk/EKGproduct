@@ -244,7 +244,7 @@ export default function MyInvestments() {
     <div className="p-6">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-semibold">My Investments</h1>
+          <h1 className="text-2xl font-semibold">My Reports</h1>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"

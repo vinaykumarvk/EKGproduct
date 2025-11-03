@@ -257,7 +257,7 @@ export default function Dashboard() {
                   color="primary"
                 />
                 <StatsCard
-                  title="Active Investments"
+                  title="Active Reports"
                   value={stats?.activeInvestments || 0}
                   icon={Briefcase}
                   color="success"
