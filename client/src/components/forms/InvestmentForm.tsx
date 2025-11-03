@@ -501,10 +501,10 @@ export function InvestmentForm() {
           </p>
           <FileUpload
             onFilesChange={(files) => {
-              // Update document tabs with simple structure
+              // Update document tabs with simple structure - use default category 1
               setDocumentTabs([{
                 id: 'documents',
-                categoryId: null,
+                categoryId: 1, // Default category for general documents
                 customCategoryName: 'Report Documents',
                 files: files
               }]);
