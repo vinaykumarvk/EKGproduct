@@ -400,10 +400,8 @@ export function InvestmentForm() {
                   <SelectValue placeholder="Select report type..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="equity">Financial Analysis</SelectItem>
-                  <SelectItem value="debt">Market Research</SelectItem>
-                  <SelectItem value="real_estate">Client Proposal</SelectItem>
-                  <SelectItem value="alternative">Custom Report</SelectItem>
+                  <SelectItem value="base_document">Base Document</SelectItem>
+                  <SelectItem value="rfp_report">RFP Report</SelectItem>
                 </SelectContent>
               </Select>
               {form.formState.errors.investmentType && (
