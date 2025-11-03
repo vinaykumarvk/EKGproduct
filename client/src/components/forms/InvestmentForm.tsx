@@ -25,42 +25,21 @@ const formSchema = insertInvestmentRequestSchema.omit({
   currentApprovalStage: true,
   slaDeadline: true,
   status: true,
+  amount: true,
+  expectedReturn: true,
+  expectedReturnMin: true,
+  expectedReturnMax: true,
+  riskLevel: true,
 }).extend({
+  reportDate: z.string().min(1, "Date is required"),
+  reportTitle: z.string().min(1, "Report title is required"),
+  createdBy: z.string().min(1, "Creator name is required"),
+  amount: z.string().optional(),
   expectedReturn: z.string().optional(),
   expectedReturnMin: z.string().optional(),
   expectedReturnMax: z.string().optional(),
-  expectedReturnType: z.enum(["absolute", "range"]).default("absolute"),
-  amount: z.string().min(1, "Amount is required"),
-}).refine(
-  (data) => {
-    if (data.expectedReturnType === "absolute") {
-      return data.expectedReturn && data.expectedReturn.trim() !== "";
-    } else if (data.expectedReturnType === "range") {
-      return data.expectedReturnMin && data.expectedReturnMin.trim() !== "" &&
-             data.expectedReturnMax && data.expectedReturnMax.trim() !== "";
-    }
-    return false;
-  },
-  (data) => ({
-    message: data.expectedReturnType === "absolute" 
-      ? "Expected return is required" 
-      : "Both minimum and maximum returns are required",
-    path: data.expectedReturnType === "absolute" ? ["expectedReturn"] : ["expectedReturnMin"],
-  })
-).refine(
-  (data) => {
-    if (data.expectedReturnType === "range" && data.expectedReturnMin && data.expectedReturnMax) {
-      const min = parseFloat(data.expectedReturnMin);
-      const max = parseFloat(data.expectedReturnMax);
-      return !isNaN(min) && !isNaN(max) && min < max;
-    }
-    return true;
-  },
-  {
-    message: "Minimum return must be less than maximum return",
-    path: ["expectedReturnMax"],
-  }
-)
+  riskLevel: z.string().optional(),
+})
 
 type FormData = z.infer<typeof formSchema>
 
@@ -83,29 +62,27 @@ export function InvestmentForm() {
     defaultValues: {
       targetCompany: "",
       investmentType: "equity",
-      amount: "",
-      expectedReturn: "",
-      expectedReturnMin: "",
-      expectedReturnMax: "",
-      expectedReturnType: "absolute",
+      reportDate: new Date().toISOString().split('T')[0],
+      reportTitle: "",
+      createdBy: "",
       description: "",
-      riskLevel: "medium",
     },
   })
 
   const createInvestment = useMutation({
     mutationFn: async (data: FormData) => {
       try {
-        console.log("=== INVESTMENT CREATION STARTED ===")
+        console.log("=== REPORT CREATION STARTED ===")
         console.log("Original form data:", data)
         
-        // Keep amounts as strings for decimal validation and handle expected return type
+        // Prepare API data with new fields
         const apiData = {
           ...data,
-          amount: data.amount.toString(),
-          expectedReturn: data.expectedReturnType === "absolute" ? data.expectedReturn?.toString() : null,
-          expectedReturnMin: data.expectedReturnType === "range" ? data.expectedReturnMin?.toString() : null,
-          expectedReturnMax: data.expectedReturnType === "range" ? data.expectedReturnMax?.toString() : null,
+          amount: "0", // Default value for backward compatibility
+          expectedReturn: null,
+          expectedReturnMin: null,
+          expectedReturnMax: null,
+          riskLevel: "medium", // Default value for backward compatibility
           status: "opportunity", // Set status to "opportunity" for admin review workflow
         }
         console.log("Converted API data:", apiData)
@@ -254,10 +231,11 @@ export function InvestmentForm() {
       // Convert form data to proper API format (same as createInvestment)
       const apiData = {
         ...data,
-        amount: data.amount.toString(),
-        expectedReturn: data.expectedReturnType === "absolute" ? data.expectedReturn?.toString() : null,
-        expectedReturnMin: data.expectedReturnType === "range" ? data.expectedReturnMin?.toString() : null,
-        expectedReturnMax: data.expectedReturnType === "range" ? data.expectedReturnMax?.toString() : null,
+        amount: "0", // Default value for backward compatibility
+        expectedReturn: null,
+        expectedReturnMin: null,
+        expectedReturnMax: null,
+        riskLevel: "medium", // Default value for backward compatibility
         status: "draft",
       }
       
@@ -396,33 +374,6 @@ export function InvestmentForm() {
     console.log("Form is valid:", form.formState.isValid)
     console.log("Document tabs:", documentTabs)
     
-    // Validate expected return fields manually for debugging
-    if (data.expectedReturnType === "absolute" && (!data.expectedReturn || data.expectedReturn.trim() === "")) {
-      console.error("Validation error: Expected return is required for absolute type");
-      form.setError("expectedReturn", { message: "Expected return is required" });
-      return;
-    }
-    
-    if (data.expectedReturnType === "range") {
-      if (!data.expectedReturnMin || data.expectedReturnMin.trim() === "") {
-        console.error("Validation error: Minimum return is required for range type");
-        form.setError("expectedReturnMin", { message: "Minimum return is required" });
-        return;
-      }
-      if (!data.expectedReturnMax || data.expectedReturnMax.trim() === "") {
-        console.error("Validation error: Maximum return is required for range type");
-        form.setError("expectedReturnMax", { message: "Maximum return is required" });
-        return;
-      }
-      const min = parseFloat(data.expectedReturnMin);
-      const max = parseFloat(data.expectedReturnMax);
-      if (isNaN(min) || isNaN(max) || min >= max) {
-        console.error("Validation error: Invalid range values");
-        form.setError("expectedReturnMax", { message: "Minimum return must be less than maximum return" });
-        return;
-      }
-    }
-    
     console.log("Validation passed, calling mutation...");
     createInvestment.mutate(data)
   }
@@ -473,86 +424,40 @@ export function InvestmentForm() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
             <div className="space-y-2">
-              <Label htmlFor="amount">Project Value / Budget ($)</Label>
+              <Label htmlFor="reportDate">Date</Label>
               <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                {...form.register("amount")}
+                id="reportDate"
+                type="date"
+                {...form.register("reportDate")}
               />
-              {form.formState.errors.amount && (
-                <p className="text-sm text-red-600">{form.formState.errors.amount.message}</p>
+              {form.formState.errors.reportDate && (
+                <p className="text-sm text-red-600">{form.formState.errors.reportDate.message}</p>
               )}
             </div>
 
-            <div className="space-y-3">
-              <Label>Confidence Level (%)</Label>
-              
-              {/* Toggle between Absolute and Range */}
-              <RadioGroup
-                value={form.watch("expectedReturnType")}
-                onValueChange={(value: "absolute" | "range") => {
-                  form.setValue("expectedReturnType", value);
-                  // Clear other fields when switching
-                  if (value === "absolute") {
-                    form.setValue("expectedReturnMin", "");
-                    form.setValue("expectedReturnMax", "");
-                  } else {
-                    form.setValue("expectedReturn", "");
-                  }
-                }}
-                className="flex flex-row space-x-6"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="absolute" id="absolute" />
-                  <Label htmlFor="absolute">Single Value</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="range" id="range" />
-                  <Label htmlFor="range">Range</Label>
-                </div>
-              </RadioGroup>
-
-              {/* Dynamic input fields based on selection */}
-              {form.watch("expectedReturnType") === "absolute" ? (
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="8.5"
-                  {...form.register("expectedReturn")}
-                />
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-sm text-gray-600">Min %</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="6.0"
-                      {...form.register("expectedReturnMin")}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Max %</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="10.0"
-                      {...form.register("expectedReturnMax")}
-                    />
-                  </div>
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="reportTitle">Title of Report</Label>
+              <Input
+                id="reportTitle"
+                placeholder="Enter report title"
+                {...form.register("reportTitle")}
+              />
+              {form.formState.errors.reportTitle && (
+                <p className="text-sm text-red-600">{form.formState.errors.reportTitle.message}</p>
               )}
-              
-              {(form.formState.errors.expectedReturn || form.formState.errors.expectedReturnMin || form.formState.errors.expectedReturnMax) && (
-                <p className="text-sm text-red-600">
-                  {form.formState.errors.expectedReturn?.message || 
-                   form.formState.errors.expectedReturnMin?.message || 
-                   form.formState.errors.expectedReturnMax?.message}
-                </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="createdBy">Created By</Label>
+              <Input
+                id="createdBy"
+                placeholder="Enter your name"
+                {...form.register("createdBy")}
+              />
+              {form.formState.errors.createdBy && (
+                <p className="text-sm text-red-600">{form.formState.errors.createdBy.message}</p>
               )}
             </div>
           </div>
@@ -584,39 +489,26 @@ export function InvestmentForm() {
             )}
           </div>
 
-          <div className="mt-6">
-            <Label>Risk Assessment</Label>
-            <RadioGroup
-              value={form.watch("riskLevel")}
-              onValueChange={(value) => form.setValue("riskLevel", value)}
-              className="flex flex-row space-x-6 mt-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="low" id="low" />
-                <Label htmlFor="low">Low Risk</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="medium" id="medium" />
-                <Label htmlFor="medium">Medium Risk</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="high" id="high" />
-                <Label htmlFor="high">High Risk</Label>
-              </div>
-            </RadioGroup>
-            {form.formState.errors.riskLevel && (
-              <p className="text-sm text-red-600">{form.formState.errors.riskLevel.message}</p>
-            )}
-          </div>
         </CardContent>
       </Card>
 
       {/* Document Upload */}
       <Card>
         <CardContent className="pt-6">
-          <MultiTabDocumentUpload
-            onDocumentTabsChange={setDocumentTabs}
-            initialTabs={documentTabs}
+          <h3 className="text-lg font-semibold mb-4">Document Upload</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Upload supporting documents for this report (optional)
+          </p>
+          <FileUpload
+            onFilesChange={(files) => {
+              // Update document tabs with simple structure
+              setDocumentTabs([{
+                id: 'documents',
+                categoryId: null,
+                customCategoryName: 'Report Documents',
+                files: files
+              }]);
+            }}
           />
         </CardContent>
       </Card>
