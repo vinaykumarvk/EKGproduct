@@ -1313,10 +1313,12 @@ Write the response now:`;
         { type: "revisionHistory", title: "Revision History", orderIndex: 1 },
         { type: "tableOfContents", title: "Table of Contents", orderIndex: 2 },
         { type: "changeRequirement", title: "1. Change Requirement", orderIndex: 3 },
-        { type: "businessImpact", title: "2. Business Impact", orderIndex: 4 },
-        { type: "affectedSystems", title: "3. Affected Systems", orderIndex: 5 },
-        { type: "solution", title: "4. Solution", orderIndex: 6 },
-        { type: "testScenarios", title: "5. Test Scenarios", orderIndex: 7 }
+        { type: "pdaReference", title: "2. PDA Reference Number", orderIndex: 4 },
+        { type: "pfasReference", title: "3. PFAS Document Reference", orderIndex: 5 },
+        { type: "businessImpact", title: "4. Business Impact", orderIndex: 6 },
+        { type: "affectedSystems", title: "5. Affected Systems", orderIndex: 7 },
+        { type: "solution", title: "6. Solution", orderIndex: 8 },
+        { type: "testScenarios", title: "7. Test Scenarios", orderIndex: 9 }
       ];
 
       const sections = [];

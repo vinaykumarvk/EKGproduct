@@ -203,6 +203,8 @@ export default function Templates() {
       revisionHistory: "Track all changes made to this document",
       tableOfContents: "Automatically generated navigation",
       changeRequirement: "Explain why this change is being done",
+      pdaReference: "Enter or paste PDA reference number",
+      pfasReference: "Enter or paste PFAS document reference",
       businessImpact: "Impact analysis of implementing or not implementing",
       affectedSystems: "List of systems impacted by this change",
       solution: "Detailed technical solution with work items",
