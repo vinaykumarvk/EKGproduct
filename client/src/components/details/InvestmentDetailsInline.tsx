@@ -21,10 +21,10 @@ import { useToast } from "@/hooks/use-toast";
 import DocumentAnalysisCard from "@/components/documents/DocumentAnalysisCard";
 import { DocumentAIAnalysis } from "@/components/documents/DocumentAIAnalysis";
 import { MarketRegulationResearch } from "@/components/research/MarketRegulationResearch";
-import InvestmentRationaleModal from "@/components/rationale/InvestmentRationaleModal";
 import { EnhancedDocumentCategorySelector } from "@/components/documents/EnhancedDocumentCategorySelector";
 import MarkdownRenderer from "@/components/documents/MarkdownRenderer";
 import { ApprovalHistoryCard } from '@/components/approval/ApprovalHistoryCard';
+import { ReportWorkChat } from "@/components/report/ReportWorkChat";
 
 // Edit form schema
 const editFormSchema = z.object({
@@ -47,15 +47,10 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [filesToDelete, setFilesToDelete] = useState<number[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<any[]>([]);
-  const [isRationaleExpanded, setIsRationaleExpanded] = useState(false);
+  const [isWorkChatOpen, setIsWorkChatOpen] = useState(false);
   const [isDocumentsExpanded, setIsDocumentsExpanded] = useState(false);
   const [isResearchExpanded, setIsResearchExpanded] = useState(false);
   const [isApprovalExpanded, setIsApprovalExpanded] = useState(true);
-  const [isRationaleModalOpen, setIsRationaleModalOpen] = useState(false);
-  const [editingRationaleId, setEditingRationaleId] = useState<number | null>(null);
-  const [editingRationaleContent, setEditingRationaleContent] = useState('');
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [rationaleToDelete, setRationaleToDelete] = useState<number | null>(null);
 
   // Fetch detailed investment data when expanded
   const { data: investmentDetails, isLoading: isInvestmentLoading } = useQuery({
@@ -72,12 +67,6 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
   // Fetch documents
   const { data: documents } = useQuery({
     queryKey: [`/api/documents/investment/${investment?.id}`],
-    enabled: !!investment?.id && isExpanded,
-  });
-
-  // Fetch investment rationales
-  const { data: rationales } = useQuery({
-    queryKey: [`/api/investments/${investment?.id}/rationales`],
     enabled: !!investment?.id && isExpanded,
   });
 
@@ -266,147 +255,9 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
     },
   });
 
-  // Update rationale mutation
-  const updateRationaleMutation = useMutation({
-    mutationFn: async ({ rationaleId, content }: { rationaleId: number; content: string }) => {
-      console.log('Updating rationale:', { rationaleId, content, investmentId: investment.id });
-      const url = `/api/investments/${investment.id}/rationales/${rationaleId}`;
-      console.log('API URL:', url);
-      const response = await apiRequest('PUT', url, { content });
-      console.log('API Response:', response);
-      return response;
-    },
-    onSuccess: (data) => {
-      console.log('Update successful:', data);
-      queryClient.invalidateQueries({ queryKey: [`/api/investments/${investment.id}/rationales`] });
-      toast({ title: "Investment rationale updated successfully" });
-      setEditingRationaleId(null);
-      setEditingRationaleContent('');
-    },
-    onError: (error) => {
-      console.error('Update failed:', error);
-      toast({ title: "Error updating rationale", variant: "destructive" });
-    },
-  });
-
-  // Delete rationale mutation
-  const deleteRationaleMutation = useMutation({
-    mutationFn: async (rationaleId: number) => {
-      return apiRequest('DELETE', `/api/investments/${investment.id}/rationales/${rationaleId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/investments/${investment.id}/rationales`] });
-      toast({ title: "Investment rationale deleted successfully" });
-    },
-    onError: () => {
-      toast({ title: "Failed to delete investment rationale", variant: "destructive" });
-    },
-  });
-
   // Handlers
   const handleInlineEdit = () => {
     setIsInlineEditing(true);
-  };
-
-  const handleEditRationale = (rationale: any) => {
-    setEditingRationaleId(rationale.id);
-    setEditingRationaleContent(rationale.content);
-  };
-
-  const handleSaveRationale = () => {
-    if (editingRationaleId && editingRationaleContent.trim()) {
-      updateRationaleMutation.mutate({ 
-        rationaleId: editingRationaleId, 
-        content: editingRationaleContent.trim()
-      });
-    }
-  };
-
-  const handleCancelEditRationale = () => {
-    setEditingRationaleId(null);
-    setEditingRationaleContent('');
-  };
-
-  const handleDownloadPDF = async (rationale: any) => {
-    try {
-      // Dynamic import of jsPDF
-      const jsPDF = (await import('jspdf')).default;
-      const pdf = new jsPDF();
-      
-      // Set up PDF content
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const margin = 20;
-      const maxWidth = pageWidth - 2 * margin;
-      
-      // Add title
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Investment Rationale Report', margin, 30);
-      
-      // Add investment details
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Company: ${investment?.targetCompany || 'N/A'}`, margin, 50);
-      pdf.text(`Request ID: ${investment?.requestId || 'N/A'}`, margin, 60);
-      pdf.text(`Generated by: ${rationale.author?.firstName} ${rationale.author?.lastName}`, margin, 70);
-      pdf.text(`Created: ${new Date(rationale.createdAt).toLocaleDateString()}`, margin, 80);
-      if (rationale.template?.name) {
-        pdf.text(`Template: ${rationale.template.name}`, margin, 90);
-      }
-      
-      // Add content (strip markdown formatting for PDF and fix spacing)
-      let yPosition = 110;
-      
-      // Clean and normalize the content text
-      let cleanContent = rationale.content
-        .replace(/#{1,6}\s/g, '') // Remove markdown headers
-        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold formatting
-        .replace(/\*(.*?)\*/g, '$1') // Remove italic formatting
-        .replace(/\|\s*\|\s*/g, ' | ') // Fix table separators
-        .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
-        .trim();
-      
-      // Fix letter spacing issues (like "p o s t - t a x" -> "post-tax")
-      // Handle compound words with hyphens first
-      cleanContent = cleanContent.replace(/(\w)\s+(\w)\s+(\w)\s+(\w)\s*-\s*(\w)\s+(\w)\s+(\w)/g, '$1$2$3$4-$5$6$7');
-      // Handle regular spaced-out words
-      cleanContent = cleanContent.replace(/\b(\w)\s+(\w)\s+(\w)\s+(\w)\s+(\w)\s+(\w)\b/g, '$1$2$3$4$5$6');
-      cleanContent = cleanContent.replace(/\b(\w)\s+(\w)\s+(\w)\s+(\w)\s+(\w)\b/g, '$1$2$3$4$5');
-      cleanContent = cleanContent.replace(/\b(\w)\s+(\w)\s+(\w)\s+(\w)\b/g, '$1$2$3$4');
-      cleanContent = cleanContent.replace(/\b(\w)\s+(\w)\s+(\w)\b/g, '$1$2$3');
-      
-      // Final cleanup for any remaining letter spacing issues  
-      cleanContent = cleanContent.replace(/(?<=\w)\s+(?=\w)/g, '');
-      
-      const contentLines = cleanContent.split('\n').filter(line => line.trim());
-      
-      pdf.setFontSize(10);
-      contentLines.forEach((line: string) => {
-        if (yPosition > pdf.internal.pageSize.getHeight() - 20) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-        
-        if (line.trim()) {
-          const wrappedLines = pdf.splitTextToSize(line.trim(), maxWidth);
-          wrappedLines.forEach((wrappedLine: string) => {
-            pdf.text(wrappedLine, margin, yPosition);
-            yPosition += 6;
-          });
-        } else {
-          yPosition += 6;
-        }
-      });
-      
-      // Download PDF
-      const fileName = `Investment_Rationale_${investment?.targetCompany?.replace(/\s+/g, '_') || 'Unknown'}_${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(fileName);
-      
-      toast({ title: "Rationale downloaded as PDF successfully" });
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      toast({ title: "Failed to generate PDF", variant: "destructive" });
-    }
   };
 
   const handleSaveInlineEdit = async () => {
@@ -471,19 +322,6 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
     } catch (error) {
       console.error('Submit failed:', error);
     }
-  };
-
-  const handleDeleteRationale = (rationaleId: number) => {
-    setRationaleToDelete(rationaleId);
-    setDeleteConfirmOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (rationaleToDelete) {
-      deleteRationaleMutation.mutate(rationaleToDelete);
-    }
-    setDeleteConfirmOpen(false);
-    setRationaleToDelete(null);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -939,135 +777,60 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
               )}
             </Card>
 
-            {/* Investment Rationale Section */}
-            <Card>
-              <CardHeader 
-                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors py-3"
-                onClick={() => setIsRationaleExpanded(!isRationaleExpanded)}
-              >
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4" />
-                    Investment Rationale
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {rationales && rationales.length > 0 && (
-                      <Badge variant="secondary">{rationales.length}</Badge>
-                    )}
-                    {isRationaleExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </div>
-                </div>
-              </CardHeader>
-              {isRationaleExpanded && (
-                <CardContent className="pt-0 pb-4">
-                  <div className="space-y-4">
-                    {rationales && rationales.length > 0 ? (
-                      <div className="space-y-3">
-                        {rationales.map((rationale: any) => (
-                          <div key={rationale.id} className="border rounded-lg p-4 space-y-3">
-                            <div className="flex justify-between items-start">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-500">
-                                    by {rationale.author?.firstName} {rationale.author?.lastName} • {new Date(rationale.createdAt).toLocaleDateString()}
-                                  </span>
-                                  {rationale.template?.name && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {rationale.template.name}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDownloadPDF(rationale)}
-                                  className="h-8 w-8 p-0"
-                                  title="Download as PDF"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditRationale(rationale)}
-                                  className="h-8 w-8 p-0"
-                                  title="Edit rationale"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteRationale(rationale.id)}
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-800"
-                                  title="Delete rationale"
-                                  disabled={deleteRationaleMutation.isPending}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                            
-                            {editingRationaleId === rationale.id ? (
-                              <div className="space-y-3">
-                                <Textarea
-                                  value={editingRationaleContent}
-                                  onChange={(e) => setEditingRationaleContent(e.target.value)}
-                                  rows={10}
-                                  className="w-full"
-                                />
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleCancelEditRationale}
-                                  >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={handleSaveRationale}
-                                    disabled={updateRationaleMutation.isPending}
-                                  >
-                                    {updateRationaleMutation.isPending ? 'Saving...' : 'Save Changes'}
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="prose prose-sm max-w-none">
-                                <div className="text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded border">
-                                  <MarkdownRenderer content={rationale.content} />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+            {/* Work on Report Section */}
+            {!isWorkChatOpen ? (
+              <Card>
+                <CardContent className="py-8">
+                  <div className="text-center space-y-4">
+                    <div className="flex justify-center">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <FileText className="h-6 w-6 text-white" />
                       </div>
-                    ) : (
-                      <div className="text-center py-6 text-gray-500">
-                        <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                        <p className="text-sm">No investment rationale added yet.</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg mb-1">Start Working on Your Report</h3>
+                      <p className="text-sm text-gray-500">
+                        Use AI to draft your report with templates, document analysis, and expert knowledge
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => setIsWorkChatOpen(true)}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      data-testid="button-work-on-report"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Work on Report
+                    </Button>
+                    <div className="grid grid-cols-3 gap-3 pt-3 text-xs text-gray-500">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="h-8 w-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <span>Templates</span>
                       </div>
-                    )}
-                    
-                    {/* Add Rationale Button */}
-                    <div className="pt-3 border-t">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsRationaleModalOpen(true)}
-                        className="flex items-center gap-2"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Add Investment Rationale
-                      </Button>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="h-8 w-8 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
+                          <Upload className="h-4 w-4 text-purple-600" />
+                        </div>
+                        <span>Documents</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="h-8 w-8 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                          <Search className="h-4 w-4 text-green-600" />
+                        </div>
+                        <span>AI Knowledge</span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
-              )}
-            </Card>
+              </Card>
+            ) : (
+              <ReportWorkChat
+                reportId={investment.id}
+                reportTitle={investment.reportTitle || investment.targetCompany}
+                onClose={() => setIsWorkChatOpen(false)}
+              />
+            )}
 
             {/* VI. Approval History */}
             <ApprovalHistoryCard
@@ -1083,35 +846,6 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
           </div>
         )}
       </CollapsibleContent>
-      
-      {/* Investment Rationale Modal */}
-      <InvestmentRationaleModal
-        isOpen={isRationaleModalOpen}
-        onClose={() => setIsRationaleModalOpen(false)}
-        investmentId={investment?.id}
-        investmentType={(investmentDetails && typeof investmentDetails === 'object' && 'investmentType' in investmentDetails) 
-          ? investmentDetails.investmentType : 'equity'}
-      />
-      
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Investment Rationale</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this investment rationale? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteConfirmOpen(false)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Collapsible>
   );
 }

@@ -1495,6 +1495,138 @@ Always cite relevant regulations and provide actionable guidance.`
     }
   });
 
+  // Report Work Chat - AI-powered collaborative report drafting
+  app.post("/api/reports/:id/chat", async (req, res) => {
+    try {
+      const reportId = parseInt(req.params.id);
+      const { question, templateId, sectionName, conversationHistory } = req.body;
+
+      // 1. Fetch report details
+      const report = await storage.getInvestmentRequest(reportId);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      // 2. Fetch attached documents
+      const documents = await storage.getDocumentsByRequest('investment', reportId);
+
+      // 3. Build comprehensive context
+      let contextParts: string[] = [];
+
+      // Add report description
+      if (report.description) {
+        contextParts.push(`Report Description: ${report.description}`);
+      }
+
+      // Add report metadata
+      contextParts.push(`Subject/Client: ${report.targetCompany}`);
+      contextParts.push(`Report Type: ${report.investmentType}`);
+      if (report.reportTitle) {
+        contextParts.push(`Report Title: ${report.reportTitle}`);
+      }
+
+      // Add template context if selected
+      if (templateId) {
+        const template = await storage.getTemplate(templateId);
+        const sections = await storage.getTemplateSections(templateId);
+        if (template) {
+          contextParts.push(`\nSelected Template: ${template.title}`);
+          if (sections && sections.length > 0) {
+            contextParts.push(`Template Sections: ${sections.map((s: any) => s.sectionName).join(', ')}`);
+          }
+        }
+      }
+
+      // Add section focus if selected
+      if (sectionName) {
+        contextParts.push(`\nCurrent Section: ${sectionName}`);
+      }
+
+      // Add document information
+      if (documents && documents.length > 0) {
+        contextParts.push(`\nAttached Documents (${documents.length}):`);
+        documents.forEach((doc: any, idx: number) => {
+          contextParts.push(`${idx + 1}. ${doc.fileName} (${doc.categoryName || 'Uncategorized'})`);
+        });
+      }
+
+      const reportContext = contextParts.join('\n');
+
+      // 4. Query EKG for additional context
+      let ekgContext = "";
+      try {
+        const ekgResponse = await fetch(`${EKG_API_URL}/v1/answer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        });
+
+        if (ekgResponse.ok) {
+          const ekgData = await ekgResponse.json();
+          if (ekgData.answer) {
+            ekgContext = `\n\nKnowledge Base Context:\n${cleanAnswer(ekgData.answer)}`;
+          }
+        }
+      } catch (error) {
+        console.log("EKG service unavailable, continuing without it");
+      }
+
+      // 5. Build AI prompt
+      const systemPrompt = `You are an expert business analyst and report writing assistant. You help users draft comprehensive, professional reports.
+
+You have access to:
+- The report's description and metadata
+- All attached documents
+- External knowledge from the EKG service
+- Historical best practices
+
+Your role is to:
+- Help users draft content for specific template sections
+- Provide insights based on the attached documents and report context
+- Suggest improvements and best practices
+- Answer questions about the report content
+- Generate professional, well-structured content
+
+Report Context:
+${reportContext}${ekgContext}
+
+Always provide clear, actionable, and professional responses. When drafting content, use proper business writing style.`;
+
+      // 6. Build conversation messages
+      const messages = [
+        { role: "system", content: systemPrompt },
+        ...(conversationHistory || []).slice(-6), // Keep last 6 messages for context
+        { role: "user", content: question }
+      ];
+
+      // 7. Call OpenAI
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: messages as any,
+        temperature: 0.7,
+        max_tokens: 2000,
+      });
+
+      const answer = completion.choices[0]?.message?.content || "I apologize, but I couldn't generate a response. Please try again.";
+
+      res.json({ 
+        answer,
+        context: {
+          reportTitle: report.reportTitle,
+          documentCount: documents?.length || 0,
+          hasEkgContext: ekgContext.length > 0
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Error in report chat:", error);
+      res.status(500).json({ 
+        error: "Failed to process chat request",
+        details: error.message 
+      });
+    }
+  });
+
   // Notification routes
   app.get("/api/notifications", async (req, res) => {
     try {
