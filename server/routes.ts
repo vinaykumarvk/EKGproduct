@@ -1528,11 +1528,35 @@ Always cite relevant regulations and provide actionable guidance.`
       // Add template context if selected
       if (templateId) {
         const template = await storage.getTemplate(templateId);
-        const sections = await storage.getTemplateSections(templateId);
         if (template) {
-          contextParts.push(`\nSelected Template: ${template.title}`);
-          if (sections && sections.length > 0) {
-            contextParts.push(`Template Sections: ${sections.map((s: any) => s.sectionName).join(', ')}`);
+          contextParts.push(`\nSelected Template: ${template.name}`);
+          
+          // Parse template data to get sections and structure
+          try {
+            const templateData = JSON.parse(template.templateData);
+            if (templateData.sections && Array.isArray(templateData.sections)) {
+              const sectionNames = templateData.sections.map((s: any) => 
+                s.name || s.title || s
+              );
+              contextParts.push(`Template Sections: ${sectionNames.join(', ')}`);
+              
+              // If a specific section is selected, add its details
+              if (sectionName) {
+                const selectedSectionData = templateData.sections.find((s: any) => 
+                  (s.name || s.title || s) === sectionName
+                );
+                if (selectedSectionData) {
+                  if (selectedSectionData.wordLimit) {
+                    contextParts.push(`Section Word Limit: ${selectedSectionData.wordLimit} words`);
+                  }
+                  if (selectedSectionData.description) {
+                    contextParts.push(`Section Description: ${selectedSectionData.description}`);
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Failed to parse template data:", e);
           }
         }
       }
@@ -1572,25 +1596,32 @@ Always cite relevant regulations and provide actionable guidance.`
       }
 
       // 5. Build AI prompt
-      const systemPrompt = `You are an expert business analyst and report writing assistant. You help users draft comprehensive, professional reports.
+      const systemPrompt = `You are an expert business analyst and report writing assistant. You help users draft comprehensive, professional reports using templates.
 
 You have access to:
 - The report's description and metadata
-- All attached documents
+- All attached documents for analysis and reference
 - External knowledge from the EKG service
-- Historical best practices
+- Historical best practices from the vector store
+${templateId ? '- The selected template structure and section requirements' : ''}
 
 Your role is to:
 - Help users draft content for specific template sections
-- Provide insights based on the attached documents and report context
+- Analyze and incorporate insights from attached documents
+- Provide context-aware suggestions based on template requirements
+- Respect word limits and section descriptions when provided
 - Suggest improvements and best practices
-- Answer questions about the report content
 - Generate professional, well-structured content
 
 Report Context:
 ${reportContext}${ekgContext}
 
-Always provide clear, actionable, and professional responses. When drafting content, use proper business writing style.`;
+When drafting content:
+1. If a template section is selected, tailor your response to that section's requirements
+2. Reference the attached documents when relevant to provide evidence-based content
+3. Follow professional business writing standards
+4. Respect any word limits specified in the template
+5. Provide actionable, clear, and comprehensive responses`;
 
       // 6. Build conversation messages
       const messages = [
