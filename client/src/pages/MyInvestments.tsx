@@ -193,8 +193,8 @@ export default function MyInvestments() {
   }) || [];
 
   return (
-    <div className="w-full h-full overflow-auto p-4 md:p-6">
-      <div className="max-w-7xl mx-auto mb-6">
+    <div className="w-full h-full overflow-auto py-4 px-2 md:py-6 md:px-4">
+      <div className="w-full mb-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-semibold">My Reports</h1>
           <div className="flex items-center gap-2">
