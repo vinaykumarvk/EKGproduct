@@ -1039,10 +1039,15 @@ Write the response now:`;
 
   app.post("/api/investments", async (req, res) => {
     try {
+      console.log("Creating investment with data:", req.body);
       const investment = await storage.createInvestmentRequest(req.body);
       res.json(investment);
     } catch (error) {
-      res.status(500).json({ error: "Failed to create investment" });
+      console.error("Failed to create investment:", error);
+      res.status(500).json({ 
+        error: "Failed to create investment",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
