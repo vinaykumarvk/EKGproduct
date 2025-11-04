@@ -19,7 +19,8 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import DocumentAnalysisCard from "@/components/documents/DocumentAnalysisCard";
-import UnifiedSearchInterface from "@/components/documents/UnifiedSearchInterface";
+import { DocumentAIAnalysis } from "@/components/documents/DocumentAIAnalysis";
+import { MarketRegulationResearch } from "@/components/research/MarketRegulationResearch";
 import InvestmentRationaleModal from "@/components/rationale/InvestmentRationaleModal";
 import { EnhancedDocumentCategorySelector } from "@/components/documents/EnhancedDocumentCategorySelector";
 import MarkdownRenderer from "@/components/documents/MarkdownRenderer";
@@ -29,41 +30,8 @@ import { ApprovalHistoryCard } from '@/components/approval/ApprovalHistoryCard';
 const editFormSchema = z.object({
   targetCompany: z.string().min(1, "Target company is required"),
   investmentType: z.enum(["equity", "debt", "real_estate", "alternative"]),
-  amount: z.string().min(1, "Amount is required"),
-  expectedReturn: z.string().optional(),
-  expectedReturnMin: z.string().optional(),
-  expectedReturnMax: z.string().optional(),
-  expectedReturnType: z.enum(["absolute", "range"]).default("absolute"),
   description: z.string().optional(),
-  riskLevel: z.enum(["low", "medium", "high"]),
-}).refine(
-  (data) => {
-    if (data.expectedReturnType === "absolute") {
-      return data.expectedReturn && data.expectedReturn.trim() !== "";
-    } else if (data.expectedReturnType === "range") {
-      return data.expectedReturnMin && data.expectedReturnMin.trim() !== "" &&
-             data.expectedReturnMax && data.expectedReturnMax.trim() !== "";
-    }
-    return false;
-  },
-  {
-    message: "Expected return is required",
-    path: ["expectedReturn"],
-  }
-).refine(
-  (data) => {
-    if (data.expectedReturnType === "range" && data.expectedReturnMin && data.expectedReturnMax) {
-      const min = parseFloat(data.expectedReturnMin);
-      const max = parseFloat(data.expectedReturnMax);
-      return min < max;
-    }
-    return true;
-  },
-  {
-    message: "Minimum return must be less than maximum return",
-    path: ["expectedReturnMax"],
-  }
-);
+});
 
 interface InvestmentDetailsInlineProps {
   investment: any;
@@ -119,13 +87,7 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
     defaultValues: {
       targetCompany: "",
       investmentType: "equity",
-      amount: "",
-      expectedReturn: "",
-      expectedReturnMin: "",
-      expectedReturnMax: "",
-      expectedReturnType: "absolute",
       description: "",
-      riskLevel: "medium",
     },
   });
 
@@ -136,13 +98,7 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
       editForm.reset({
         targetCompany: details.targetCompany || "",
         investmentType: details.investmentType || "equity",
-        amount: details.amount?.toString() || "",
-        expectedReturn: details.expectedReturn?.toString() || "",
-        expectedReturnMin: details.expectedReturnMin?.toString() || "",
-        expectedReturnMax: details.expectedReturnMax?.toString() || "",
-        expectedReturnType: details.expectedReturnType || "absolute",
         description: details.description || "",
-        riskLevel: details.riskLevel || "medium",
       });
     }
   }, [investmentDetails, isInlineEditing]);
@@ -150,24 +106,7 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
   // Mutations
   const editDraftMutation = useMutation({
     mutationFn: async (data: z.infer<typeof editFormSchema>) => {
-      // Keep amounts as strings to avoid floating-point precision issues
-      const payload: any = {
-        ...data,
-        amount: data.amount.toString(),
-        expectedReturnType: data.expectedReturnType,
-      };
-      
-      if (data.expectedReturnType === "absolute" && data.expectedReturn) {
-        payload.expectedReturn = data.expectedReturn.toString();
-        payload.expectedReturnMin = null;
-        payload.expectedReturnMax = null;
-      } else if (data.expectedReturnType === "range" && data.expectedReturnMin && data.expectedReturnMax) {
-        payload.expectedReturn = null;
-        payload.expectedReturnMin = data.expectedReturnMin.toString();
-        payload.expectedReturnMax = data.expectedReturnMax.toString();
-      }
-      
-      return apiRequest('PUT', `/api/investments/${investment.id}`, payload);
+      return apiRequest('PUT', `/api/investments/${investment.id}`, data);
     },
     onSuccess: () => {
       // Invalidate investment-specific queries
@@ -503,13 +442,7 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
       editForm.reset({
         targetCompany: details.targetCompany || "",
         investmentType: details.investmentType || "equity",
-        amount: details.amount?.toString() || "",
-        expectedReturn: details.expectedReturn?.toString() || "",
-        expectedReturnMin: details.expectedReturnMin?.toString() || "",
-        expectedReturnMax: details.expectedReturnMax?.toString() || "",
-        expectedReturnType: details.expectedReturnType || "absolute",
         description: details.description || "",
-        riskLevel: details.riskLevel || "medium",
       });
     }
   };
@@ -626,18 +559,6 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
     }
   };
 
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
@@ -658,7 +579,7 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
           </div>
         ) : investmentDetails && typeof investmentDetails === 'object' && 'targetCompany' in investmentDetails ? (
           <div className="space-y-6">
-            {/* I. Attached Documents */}
+            {/* I. Attached Documents with AI Analysis */}
             {documents && Array.isArray(documents) && documents.length > 0 && (
               <Card>
                 <CardHeader 
@@ -675,16 +596,20 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
                 </CardHeader>
                 {isDocumentsExpanded && (
                   <CardContent className="pt-0 pb-4">
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {Array.isArray(documents) && documents.map((doc: any) => (
-                      <DocumentAnalysisCard
-                        key={doc.id}
-                        document={doc}
-                        requestId={investment.id}
-                        requestType="investment"
-                        showAnalysisLabel={false}
-                        showOnlyProcessed={true}
-                      />
+                      <div key={doc.id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-blue-600" />
+                            <span className="font-medium text-sm">{doc.originalName}</span>
+                            <span className="text-xs text-gray-500">
+                              ({(doc.fileSize / 1024 / 1024).toFixed(2)} MB)
+                            </span>
+                          </div>
+                        </div>
+                        <DocumentAIAnalysis document={doc} />
+                      </div>
                     ))}
                   </div>
                   </CardContent>
@@ -692,77 +617,60 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
               </Card>
             )}
 
-            {/* II. Research & Analysis */}
-            {documents && Array.isArray(documents) && documents.length > 0 && (
-              <Card>
-                <CardHeader 
-                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors py-3"
-                  onClick={() => setIsResearchExpanded(!isResearchExpanded)}
-                >
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Search className="h-4 w-4" />
-                      Research & Analysis
-                    </CardTitle>
-                    {isResearchExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </div>
-                </CardHeader>
-                {isResearchExpanded && (
-                  <CardContent className="pt-0 pb-4">
-                    <UnifiedSearchInterface 
-                      documents={Array.isArray(documents) ? documents : []}
-                      requestId={investment.id}
-                      requestType="investment"
-                      isExpanded={isResearchExpanded}
-                      onExpandedChange={setIsResearchExpanded}
-                    />
-                  </CardContent>
-                )}
-              </Card>
-            )}
+            {/* II. Market Regulation Research */}
+            <Card>
+              <CardHeader 
+                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors py-3"
+                onClick={() => setIsResearchExpanded(!isResearchExpanded)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Search className="h-4 w-4" />
+                    Market Regulation Research
+                  </CardTitle>
+                  {isResearchExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+              </CardHeader>
+              {isResearchExpanded && (
+                <CardContent className="pt-0 pb-4">
+                  <MarketRegulationResearch 
+                    projectContext={investment?.targetCompany ? `Project: ${investment.targetCompany}` : undefined}
+                  />
+                </CardContent>
+              )}
+            </Card>
 
-            {/* III. Investment Details Summary */}
+            {/* III. Report Details Summary */}
             <Card>
               <CardHeader className="py-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <FileText className="h-4 w-4" />
-                  Investment Details
+                  Report Details
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0 pb-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Request ID:</span>
-                    <span className="font-medium text-blue-600">{investment?.requestId || 'N/A'}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Report Code:</span>
+                    <span className="font-medium text-blue-600 dark:text-blue-400">{investment?.reportCode || investment?.requestId || 'N/A'}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Target Company:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Subject/Client:</span>
                     <span className="font-medium">{investment?.targetCompany || 'N/A'}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Risk Level:</span>
-                    <Badge className={getRiskColor(investment?.riskLevel || 'medium')}>
-                      {investment?.riskLevel || 'Medium'}
-                    </Badge>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Type:</span>
+                    <span className="font-medium capitalize">{investment?.investmentType?.replace('_', ' ') || 'N/A'}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Amount:</span>
-                    <span className="font-medium">${(investment?.amount || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Expected Return:</span>
-                    <span className="font-medium">
-                      {investment?.expectedReturnType === 'range' && 
-                       investment?.expectedReturnMin && 
-                       investment?.expectedReturnMax
-                        ? `${investment.expectedReturnMin}% - ${investment.expectedReturnMax}%`
-                        : `${investment?.expectedReturn || 0}%`
-                      }
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Created:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Created:</span>
                     <span className="font-medium">{format(new Date(investment?.createdAt || new Date()), 'MMM dd, yyyy')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Status:</span>
+                    <Badge className={getStatusColor(investment?.status || 'draft')}>
+                      {investment?.status || 'Draft'}
+                    </Badge>
                   </div>
                 </div>
               </CardContent>
@@ -806,163 +714,30 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
                       />
                       
                       {/* Additional editing fields */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={editForm.control}
                           name="targetCompany"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Target Company</FormLabel>
+                              <FormLabel>Subject/Client</FormLabel>
                               <FormControl>
-                                <Input placeholder="Enter company name" {...field} />
+                                <Input placeholder="Enter subject or client name" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-                        <FormField
-                          control={editForm.control}
-                          name="riskLevel"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Risk Level</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select risk level" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="low">Low</SelectItem>
-                                  <SelectItem value="medium">Medium</SelectItem>
-                                  <SelectItem value="high">High</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={editForm.control}
-                          name="amount"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Investment Amount</FormLabel>
-                              <FormControl>
-                                <Input type="number" placeholder="Enter amount" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        {/* Expected Return with Toggle */}
-                        <div className="md:col-span-2">
-                          <FormField
-                            control={editForm.control}
-                            name="expectedReturnType"
-                            render={({ field }) => (
-                              <FormItem className="space-y-3">
-                                <FormLabel>Expected Return (%)</FormLabel>
-                                <FormControl>
-                                  <RadioGroup
-                                    onValueChange={(value: "absolute" | "range") => {
-                                      field.onChange(value);
-                                      // Clear other fields when switching
-                                      if (value === "absolute") {
-                                        editForm.setValue("expectedReturnMin", "");
-                                        editForm.setValue("expectedReturnMax", "");
-                                      } else {
-                                        editForm.setValue("expectedReturn", "");
-                                      }
-                                    }}
-                                    value={field.value}
-                                    className="flex flex-row space-x-6"
-                                  >
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="absolute" id="edit-absolute" />
-                                      <label htmlFor="edit-absolute">Absolute Return</label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="range" id="edit-range" />
-                                      <label htmlFor="edit-range">Return Range</label>
-                                    </div>
-                                  </RadioGroup>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          {/* Dynamic input fields based on selection */}
-                          {editForm.watch("expectedReturnType") === "absolute" ? (
-                            <FormField
-                              control={editForm.control}
-                              name="expectedReturn"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      placeholder="8.5"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          ) : (
-                            <div className="grid grid-cols-2 gap-3">
-                              <FormField
-                                control={editForm.control}
-                                name="expectedReturnMin"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="text-sm text-gray-600">Min %</FormLabel>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="6.0"
-                                        {...field}
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={editForm.control}
-                                name="expectedReturnMax"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="text-sm text-gray-600">Max %</FormLabel>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="10.0"
-                                        {...field}
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
-                          )}
-                        </div>
                         <FormField
                           control={editForm.control}
                           name="investmentType"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Investment Type</FormLabel>
+                              <FormLabel>Report Type</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select investment type" />
+                                    <SelectValue placeholder="Select report type" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
@@ -970,6 +745,7 @@ export function InvestmentDetailsInline({ investment, isExpanded, onToggle }: In
                                   <SelectItem value="debt">Debt</SelectItem>
                                   <SelectItem value="real_estate">Real Estate</SelectItem>
                                   <SelectItem value="alternative">Alternative</SelectItem>
+                                  <SelectItem value="base_document">Base Document</SelectItem>
                                 </SelectContent>
                               </Select>
                               <FormMessage />

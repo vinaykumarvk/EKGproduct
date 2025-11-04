@@ -25,20 +25,10 @@ const formSchema = insertInvestmentRequestSchema.omit({
   currentApprovalStage: true,
   slaDeadline: true,
   status: true,
-  amount: true,
-  expectedReturn: true,
-  expectedReturnMin: true,
-  expectedReturnMax: true,
-  riskLevel: true,
 }).extend({
   reportDate: z.string().min(1, "Date is required"),
   reportTitle: z.string().min(1, "Report title is required"),
   createdBy: z.string().min(1, "Creator name is required"),
-  amount: z.string().optional(),
-  expectedReturn: z.string().optional(),
-  expectedReturnMin: z.string().optional(),
-  expectedReturnMax: z.string().optional(),
-  riskLevel: z.string().optional(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -72,14 +62,9 @@ export function InvestmentForm() {
 
   const saveDraft = useMutation({
     mutationFn: async (data: FormData) => {
-      // Convert form data to proper API format (same as createInvestment)
+      // Convert form data to proper API format
       const apiData = {
         ...data,
-        amount: "0", // Default value for backward compatibility
-        expectedReturn: null,
-        expectedReturnMin: null,
-        expectedReturnMax: null,
-        riskLevel: "medium", // Default value for backward compatibility
         status: "draft",
       }
       

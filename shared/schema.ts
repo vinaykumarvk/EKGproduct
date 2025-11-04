@@ -356,14 +356,8 @@ export const investmentRequests = pgTable("investment_requests", {
   reportTitle: text("report_title"), // Title of the report (for report drafting platform)
   reportDate: text("report_date"), // Date of the report
   createdBy: text("created_by"), // Name of the author/creator
-  amount: text("amount").notNull(), // Using text instead of decimal for simplicity
-  expectedReturn: text("expected_return"),
-  expectedReturnMin: text("expected_return_min"),
-  expectedReturnMax: text("expected_return_max"),
-  expectedReturnType: text("expected_return_type").default("absolute"), // 'absolute' or 'range'
   description: text("description"),
   enhancedDescription: text("enhanced_description"), // AI-enhanced version of description
-  riskLevel: text("risk_level").notNull(), // low, medium, high
   status: text("status").notNull().default("draft"), // draft, opportunity, new, approved, rejected, changes_requested
   currentApprovalStage: integer("current_approval_stage").default(0),
   slaDeadline: timestamp("sla_deadline"),

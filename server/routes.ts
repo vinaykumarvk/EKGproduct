@@ -1284,6 +1284,114 @@ Write the response now:`;
     }
   });
 
+  // AI Document Analysis route
+  app.post("/api/documents/:id/analyze", async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const { question } = req.body;
+
+      // Get document details
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      // Read document content (simplified - in production you'd extract text from PDF, DOCX, etc.)
+      let documentContent = '';
+      try {
+        const fileContent = await fs.readFile(document.fileUrl, 'utf-8');
+        documentContent = fileContent.substring(0, 15000); // Limit to ~15K chars
+      } catch (error) {
+        documentContent = `Document: ${document.originalName} (${document.mimeType})`;
+      }
+
+      // Use OpenAI to analyze the document
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert document analyst. Analyze the provided document and answer questions about it with detailed, accurate information. Focus on key insights, important data, and actionable information."
+          },
+          {
+            role: "user",
+            content: `Document Name: ${document.originalName}\n\nDocument Content:\n${documentContent}\n\nQuestion: ${question || 'Please provide a comprehensive summary of this document, highlighting key points, important data, and main takeaways.'}`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+
+      const analysis = completion.choices[0].message.content;
+
+      res.json({ 
+        documentName: document.originalName,
+        question: question || 'Document summary',
+        analysis: analysis,
+        success: true 
+      });
+    } catch (error) {
+      console.error("Document analysis error:", error);
+      res.status(500).json({ 
+        error: "Failed to analyze document",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Market Regulation Research route
+  app.post("/api/research/regulation", async (req, res) => {
+    try {
+      const { question, projectContext } = req.body;
+
+      if (!question) {
+        return res.status(400).json({ error: "Question is required" });
+      }
+
+      // Use OpenAI to research market regulations
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert in market regulations, compliance, and financial industry standards. Provide detailed, accurate answers about regulations, compliance requirements, and industry best practices. Focus on:
+- Specific regulatory requirements
+- Compliance obligations
+- Recent regulatory changes
+- Industry standards and guidelines
+- Practical implementation advice
+
+Always cite relevant regulations and provide actionable guidance.`
+          },
+          {
+            role: "user",
+            content: projectContext 
+              ? `Project Context: ${projectContext}\n\nRegulation Question: ${question}`
+              : `Regulation Question: ${question}`
+          }
+        ],
+        temperature: 0.3, // Lower temperature for more factual responses
+        max_tokens: 2500
+      });
+
+      const answer = completion.choices[0].message.content;
+
+      res.json({ 
+        question,
+        answer,
+        projectContext: projectContext || null,
+        timestamp: new Date().toISOString(),
+        success: true 
+      });
+    } catch (error) {
+      console.error("Market regulation research error:", error);
+      res.status(500).json({ 
+        error: "Failed to research regulation",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Document category routes
   app.get("/api/document-categories", async (req, res) => {
     try {
