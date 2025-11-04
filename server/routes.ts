@@ -24,6 +24,27 @@ const upload = multer({
   },
 });
 
+// Configure multer for document uploads (disk storage)
+const documentStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = 'uploads/documents';
+    await fs.mkdir(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, uniqueSuffix + '-' + sanitizedName);
+  }
+});
+
+const documentUpload = multer({
+  storage: documentStorage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max per file
+  },
+});
+
 // Helper function to clean answer text by removing formatting noise
 function cleanAnswer(markdown: string): string {
   return markdown
@@ -1066,6 +1087,104 @@ Write the response now:`;
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete investment" });
+    }
+  });
+
+  // Document upload route
+  app.post("/api/documents/upload", documentUpload.array('documents'), async (req, res) => {
+    try {
+      const { requestType, requestId, categories, categoryId, subcategoryId } = req.body;
+      const files = req.files as Express.Multer.File[];
+      
+      console.log(`Document upload request: requestType: ${requestType}, requestId: ${requestId}, files: ${files?.length || 0}`);
+      
+      if (!files || files.length === 0) {
+        console.warn('No files provided in upload request');
+        return res.status(400).json({ message: 'No files uploaded' });
+      }
+
+      if (!requestType || !requestId) {
+        console.warn('Missing required parameters: requestType or requestId');
+        return res.status(400).json({ message: 'Missing required parameters: requestType and requestId are required' });
+      }
+      
+      const documents = [];
+      const errors = [];
+      
+      // Process files individually to handle partial failures
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          console.log(`Processing file ${i + 1}/${files.length}: ${file.originalname} (${file.size} bytes)`);
+          
+          // Validate file
+          if (!file.originalname || file.size === 0) {
+            throw new Error(`Invalid file: ${file.originalname || 'unknown'}`);
+          }
+          
+          const documentData: any = {
+            fileName: file.filename,
+            originalName: file.originalname,
+            fileSize: file.size,
+            mimeType: file.mimetype,
+            fileUrl: file.path,
+            uploaderId: 'bypass-user', // Using bypass user since auth is bypassed
+            requestType,
+            requestId: parseInt(requestId),
+          };
+          
+          // Add single category information if provided
+          if (categoryId) {
+            documentData.categoryId = parseInt(categoryId);
+          }
+          if (subcategoryId) {
+            documentData.subcategoryId = parseInt(subcategoryId);
+          }
+          
+          const document = await storage.createDocument(documentData);
+          console.log(`Document record created: ${document.id} for file ${file.originalname}`);
+          
+          documents.push(document);
+        } catch (fileError) {
+          console.error(`Failed to process file ${file.originalname}:`, fileError);
+          errors.push({
+            fileName: file.originalname,
+            error: fileError instanceof Error ? fileError.message : String(fileError)
+          });
+        }
+      }
+      
+      // If no documents were successfully processed, return error
+      if (documents.length === 0) {
+        console.error('No documents were successfully processed');
+        return res.status(500).json({ 
+          message: 'Failed to upload any documents',
+          errors 
+        });
+      }
+      
+      // Return success response with documents
+      const response: any = { 
+        documents,
+        successful: documents.length,
+        total: files.length
+      };
+      
+      if (errors.length > 0) {
+        response.errors = errors;
+        response.message = `${documents.length}/${files.length} documents uploaded successfully`;
+        console.warn(`Partial upload success: ${documents.length}/${files.length} files processed`);
+      } else {
+        console.log(`All ${documents.length} documents uploaded successfully`);
+      }
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Failed to upload documents:", error);
+      res.status(500).json({ 
+        error: "Failed to upload documents",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
