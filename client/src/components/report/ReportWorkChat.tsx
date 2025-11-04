@@ -44,7 +44,10 @@ export function ReportWorkChat({ reportId, reportTitle, onClose }: ReportWorkCha
         const template = (templates as any[]).find((t: any) => t.id === selectedTemplateId);
         if (template && template.templateData) {
           try {
-            const data = JSON.parse(template.templateData);
+            // Handle both string and pre-parsed object formats
+            const data = typeof template.templateData === 'string' 
+              ? JSON.parse(template.templateData)
+              : template.templateData;
             return data.sections || [];
           } catch (e) {
             console.error('Failed to parse template data:', e);

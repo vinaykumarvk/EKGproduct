@@ -1533,7 +1533,10 @@ Always cite relevant regulations and provide actionable guidance.`
           
           // Parse template data to get sections and structure
           try {
-            const templateData = JSON.parse(template.templateData);
+            // Handle both string and pre-parsed object formats
+            const templateData = typeof template.templateData === 'string'
+              ? JSON.parse(template.templateData)
+              : template.templateData;
             if (templateData.sections && Array.isArray(templateData.sections)) {
               const sectionNames = templateData.sections.map((s: any) => 
                 s.name || s.title || s
