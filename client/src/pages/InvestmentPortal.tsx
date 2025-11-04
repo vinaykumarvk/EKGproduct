@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Route, Switch, useLocation } from "wouter";
-import { LayoutDashboard, TrendingUp, Briefcase, CheckSquare, FileText, Menu, X } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Briefcase, CheckSquare, FileText, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardPage from "@/pages/Dashboard";
 import NewInvestmentPage from "@/pages/NewInvestment";
@@ -11,6 +11,7 @@ import TemplatesPage from "@/pages/Templates";
 export default function InvestmentPortal() {
   const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const navItems = [
     {
@@ -48,10 +49,25 @@ export default function InvestmentPortal() {
   return (
     <div className="flex h-full bg-background">
       {/* Sidebar - Desktop */}
-      <div className="hidden md:flex md:w-64 md:flex-col bg-card border-r border-border">
-        <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-bold text-foreground">Report Portal</h2>
-          <p className="text-xs text-muted-foreground mt-1">Document Generation System</p>
+      <div className={`hidden md:flex md:flex-col bg-card border-r border-border transition-all duration-300 ${
+        isSidebarCollapsed ? 'md:w-16' : 'md:w-64'
+      }`}>
+        <div className="p-4 border-b border-border flex items-center justify-between">
+          {!isSidebarCollapsed && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground">Report Portal</h2>
+              <p className="text-xs text-muted-foreground mt-1">Document Generation System</p>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="flex-shrink-0"
+            data-testid="button-toggle-sidebar"
+          >
+            {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </Button>
         </div>
         
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -67,26 +83,31 @@ export default function InvestmentPortal() {
                   isActive
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }`}
+                } ${isSidebarCollapsed ? 'justify-center' : ''}`}
                 data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
+                title={isSidebarCollapsed ? item.name : ''}
               >
                 <Icon className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="font-medium text-sm">{item.name}</div>
-                  <div className={`text-xs ${isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                    {item.description}
+                {!isSidebarCollapsed && (
+                  <div className="text-left">
+                    <div className="font-medium text-sm">{item.name}</div>
+                    <div className={`text-xs ${isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                      {item.description}
+                    </div>
                   </div>
-                </div>
+                )}
               </button>
             );
           })}
         </nav>
 
-        <div className="p-3 border-t border-border">
-          <div className="text-xs text-muted-foreground text-center">
-            Report Management System
+        {!isSidebarCollapsed && (
+          <div className="p-3 border-t border-border">
+            <div className="text-xs text-muted-foreground text-center">
+              Report Management System
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Mobile Header & Menu */}
