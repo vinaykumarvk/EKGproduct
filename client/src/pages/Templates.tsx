@@ -234,7 +234,7 @@ export default function Templates() {
   // Template card view (collapsed)
   if (!templateExpanded) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto pl-6 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">Report Templates</h1>
           <p className="text-muted-foreground mt-1">
@@ -294,7 +294,7 @@ export default function Templates() {
 
   // Expanded template view with all sections
   return (
-    <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
+    <div className="max-w-6xl mx-auto pl-6 py-6 space-y-6">
       {/* Header with Back Button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

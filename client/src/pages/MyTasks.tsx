@@ -126,7 +126,7 @@ export default function MyTasks() {
 
   if (isLoading) {
     return (
-      <div className="pl-6 py-6">
+      <div className="w-full h-full pl-6 py-6">
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="bg-white p-6 rounded-lg shadow animate-pulse">
@@ -147,7 +147,7 @@ export default function MyTasks() {
   const activeTasks = [...overdueTasks, ...pendingTasks];
 
   return (
-    <div className="pl-6 py-6">
+    <div className="w-full h-full pl-6 py-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold mb-2">My Tasks</h1>
         <div className="flex gap-4 text-sm text-gray-600">

@@ -218,7 +218,7 @@ export default function Dashboard() {
   }
   
   return (
-    <div className="pl-6 py-6 space-y-6">
+    <div className="w-full h-full pl-6 py-6 space-y-6">
       {/* Overview Section */}
       <div id="overview" className="space-y-4">
         <Collapsible 
