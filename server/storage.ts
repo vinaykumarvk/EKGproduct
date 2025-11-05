@@ -80,6 +80,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserLastLogin(id: string): Promise<void>;
+  getUserManager(userId: string): Promise<User | undefined>;
   
   // Session methods
   createSession(session: InsertSession): Promise<Session>;
@@ -149,6 +150,8 @@ export interface IStorage {
   // Approval operations
   createApproval(approval: InsertApproval): Promise<Approval>;
   getApprovalsByRequest(requestType: string, requestId: number): Promise<Approval[]>;
+  getApprovalsByApproverId(approverId: string, status?: string): Promise<Approval[]>;
+  updateApprovalStatus(id: number, status: string, rejectionReason?: string, editHistory?: string): Promise<Approval>;
   
   // Task operations
   createTask(task: InsertTask): Promise<Task>;
@@ -253,6 +256,14 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ lastLogin: new Date() })
       .where(eq(users.id, id));
+  }
+
+  async getUserManager(userId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user || !user.managerId) return undefined;
+    
+    const [manager] = await db.select().from(users).where(eq(users.id, user.managerId));
+    return manager || undefined;
   }
 
   // Session methods
@@ -876,6 +887,25 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(approvals)
       .where(and(eq(approvals.requestType, requestType), eq(approvals.requestId, requestId)))
       .orderBy(desc(approvals.createdAt));
+  }
+
+  async getApprovalsByApproverId(approverId: string, status?: string): Promise<Approval[]> {
+    const conditions = status 
+      ? and(eq(approvals.approverId, approverId), eq(approvals.status, status))
+      : eq(approvals.approverId, approverId);
+    
+    return await db.select().from(approvals)
+      .where(conditions)
+      .orderBy(desc(approvals.createdAt));
+  }
+
+  async updateApprovalStatus(id: number, status: string, rejectionReason?: string, editHistory?: string): Promise<Approval> {
+    const updateData: any = { status, approvedAt: new Date() };
+    if (rejectionReason !== undefined) updateData.rejectionReason = rejectionReason;
+    if (editHistory !== undefined) updateData.editHistory = editHistory;
+    
+    const [updated] = await db.update(approvals).set(updateData).where(eq(approvals.id, id)).returning();
+    return updated;
   }
 
   async createTask(task: InsertTask): Promise<Task> {
