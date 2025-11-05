@@ -149,9 +149,10 @@ export interface IStorage {
   
   // Approval operations
   createApproval(approval: InsertApproval): Promise<Approval>;
+  getApprovalById(id: number): Promise<Approval | undefined>;
   getApprovalsByRequest(requestType: string, requestId: number): Promise<Approval[]>;
   getApprovalsByApproverId(approverId: string, status?: string): Promise<Approval[]>;
-  updateApprovalStatus(id: number, status: string, rejectionReason?: string, editHistory?: string): Promise<Approval>;
+  updateApprovalStatus(id: number, status: string, rejectionReason?: string, editHistory?: string, comments?: string): Promise<Approval>;
   
   // Task operations
   createTask(task: InsertTask): Promise<Task>;
@@ -888,6 +889,12 @@ export class DatabaseStorage implements IStorage {
     return newApproval;
   }
 
+  async getApprovalById(id: number): Promise<Approval | undefined> {
+    return await db.query.approvals.findFirst({ 
+      where: eq(approvals.id, id) 
+    });
+  }
+
   async getApprovalsByRequest(requestType: string, requestId: number): Promise<Approval[]> {
     return await db.select().from(approvals)
       .where(and(eq(approvals.requestType, requestType), eq(approvals.requestId, requestId)))
@@ -904,10 +911,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(approvals.createdAt));
   }
 
-  async updateApprovalStatus(id: number, status: string, rejectionReason?: string, editHistory?: string): Promise<Approval> {
-    const updateData: any = { status, approvedAt: new Date() };
+  async updateApprovalStatus(id: number, status: string, rejectionReason?: string, editHistory?: string, comments?: string): Promise<Approval> {
+    const updateData: any = { status, approvedAt: status === 'approved' ? new Date() : null };
     if (rejectionReason !== undefined) updateData.rejectionReason = rejectionReason;
     if (editHistory !== undefined) updateData.editHistory = editHistory;
+    if (comments !== undefined) updateData.comments = comments;
     
     const [updated] = await db.update(approvals).set(updateData).where(eq(approvals.id, id)).returning();
     return updated;

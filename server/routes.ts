@@ -1102,8 +1102,7 @@ Write the response now:`;
         requestId: investmentId,
         approverId: manager.id,
         status: 'pending',
-        submittedBy: userId,
-        submittedAt: new Date(),
+        stage: 1,
       });
 
       res.json({ success: true, approval });
@@ -1292,13 +1291,31 @@ Write the response now:`;
 
   app.put("/api/approvals/:id", requireAuth, async (req: any, res) => {
     try {
-      const { status, rejectionReason, editHistory } = req.body;
+      const approvalId = parseInt(req.params.id);
+      const userId = req.user.id;
+      
+      // First, fetch the approval to verify authorization
+      const existingApproval = await storage.getApprovalById(approvalId);
+      if (!existingApproval) {
+        return res.status(404).json({ error: "Approval not found" });
+      }
+      
+      // Verify that the logged-in user is the assigned approver
+      if (existingApproval.approverId !== userId) {
+        return res.status(403).json({ error: "Unauthorized: You are not the assigned approver for this request" });
+      }
+      
+      const { status, rejectionReason, editHistory, comments } = req.body;
+      
+      // Update approval with status, rejection reason, and comments
       const approval = await storage.updateApprovalStatus(
-        parseInt(req.params.id),
+        approvalId,
         status,
         rejectionReason,
-        editHistory
+        editHistory,
+        comments
       );
+      
       res.json(approval);
     } catch (error) {
       res.status(500).json({ error: "Failed to update approval" });

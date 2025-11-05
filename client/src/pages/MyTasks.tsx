@@ -87,21 +87,19 @@ export default function MyTasks() {
   };
 
   const processApproval = useMutation({
-    mutationFn: async ({ taskId, action }: { taskId: number; action: 'approve' | 'reject' | 'changes_requested' }) => {
-      const task = tasks?.find((t: any) => t.id === taskId);
-      if (!task) throw new Error('Task not found');
+    mutationFn: async ({ approvalId, action }: { approvalId: number; action: 'approve' | 'reject' | 'changes_requested' }) => {
+      const approval = approvals?.find((a: any) => a.id === approvalId);
+      if (!approval) throw new Error('Approval not found');
       
-      const response = await apiRequest("POST", "/api/approvals", {
-        requestType: task.requestType,
-        requestId: task.requestId,
-        action,
-        comments,
+      const response = await apiRequest("PUT", `/api/approvals/${approvalId}`, {
+        status: action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'changes_requested',
+        rejectionReason: action === 'reject' ? comments : undefined,
+        comments: comments, // Send comments for all actions (approve, reject, changes_requested)
       });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/count"] }); // Add this for sidebar task count
+      queryClient.invalidateQueries({ queryKey: ["/api/approvals/my-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/recent-requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/investments"] });
@@ -140,20 +138,20 @@ export default function MyTasks() {
     );
   }
 
-  const pendingTasks = tasks?.filter((task: any) => task.status === 'pending') || [];
-  const completedTasks = tasks?.filter((task: any) => task.status === 'completed') || [];
-  const overdueTasks = tasks?.filter((task: any) => task.status === 'overdue') || [];
+  const pendingApprovals = approvals?.filter((approval: any) => approval.status === 'pending') || [];
+  const completedApprovals = approvals?.filter((approval: any) => approval.status === 'approved' || approval.status === 'rejected') || [];
+  const overdueApprovals = approvals?.filter((approval: any) => approval.status === 'overdue') || [];
   
-  // Combine pending and overdue tasks for the "Active" tab
-  const activeTasks = [...overdueTasks, ...pendingTasks];
+  // Combine pending and overdue approvals for the "Active" tab
+  const activeApprovals = [...overdueApprovals, ...pendingApprovals];
 
   return (
     <div className="w-full h-full pl-6 py-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold mb-2">My Tasks</h1>
         <div className="flex gap-4 text-sm text-gray-600">
-          <span>{activeTasks.length} active</span>
-          <span>{completedTasks.length} completed</span>
+          <span>{activeApprovals.length} active</span>
+          <span>{completedApprovals.length} completed</span>
         </div>
       </div>
 
@@ -161,17 +159,17 @@ export default function MyTasks() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="active" className="flex items-center gap-2">
             Active Tasks
-            {activeTasks.length > 0 && (
+            {activeApprovals.length > 0 && (
               <Badge variant="secondary" className="ml-1">
-                {activeTasks.length}
+                {activeApprovals.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="completed" className="flex items-center gap-2">
             Completed Tasks
-            {completedTasks.length > 0 && (
+            {completedApprovals.length > 0 && (
               <Badge variant="secondary" className="ml-1">
-                {completedTasks.length}
+                {completedApprovals.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -180,11 +178,11 @@ export default function MyTasks() {
         <TabsContent value="active" className="mt-6">
           <div className="space-y-6">
             {/* Overdue Tasks Section (within Active tab) */}
-            {overdueTasks.length > 0 && (
+            {overdueApprovals.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4 text-red-600">Overdue Tasks</h2>
                 <div className="space-y-4">
-                  {overdueTasks.map((task: any) => (
+                  {overdueApprovals.map((task: any) => (
                     <TaskCard 
                       key={task.id} 
                       task={task} 
@@ -204,7 +202,7 @@ export default function MyTasks() {
             <div>
               <h2 className="text-lg font-semibold mb-4">Pending Tasks</h2>
               <div className="space-y-4">
-                {pendingTasks.length === 0 ? (
+                {pendingApprovals.length === 0 ? (
                   <Card>
                     <CardContent className="py-8 text-center">
                       <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -215,7 +213,7 @@ export default function MyTasks() {
                     </CardContent>
                   </Card>
                 ) : (
-                  pendingTasks.map((task: any) => (
+                  pendingApprovals.map((task: any) => (
                     <TaskCard 
                       key={task.id} 
                       task={task} 
@@ -235,7 +233,7 @@ export default function MyTasks() {
 
         <TabsContent value="completed" className="mt-6">
           <div className="space-y-4">
-            {completedTasks.length === 0 ? (
+            {completedApprovals.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center">
                   <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -246,7 +244,7 @@ export default function MyTasks() {
                 </CardContent>
               </Card>
             ) : (
-              completedTasks.map((task: any) => (
+              completedApprovals.map((task: any) => (
                 <TaskCard 
                   key={task.id} 
                   task={task} 
@@ -833,23 +831,26 @@ function TaskCard({
                     <div className="flex items-center justify-end space-x-4">
                       <Button
                         variant="destructive"
-                        onClick={() => onProcessApproval.mutate({ taskId: task.id, action: 'reject' })}
+                        onClick={() => onProcessApproval.mutate({ approvalId: task.id, action: 'reject' })}
                         disabled={onProcessApproval.isPending || comments.trim() === ''}
+                        data-testid={`button-reject-${task.id}`}
                       >
                         <XCircle className="h-4 w-4 mr-2" />
                         Reject
                       </Button>
                       <Button
                         variant="secondary"
-                        onClick={() => onProcessApproval.mutate({ taskId: task.id, action: 'changes_requested' })}
+                        onClick={() => onProcessApproval.mutate({ approvalId: task.id, action: 'changes_requested' })}
                         disabled={onProcessApproval.isPending || comments.trim() === ''}
+                        data-testid={`button-changes-${task.id}`}
                       >
                         <FileText className="h-4 w-4 mr-2" />
                         Request Changes
                       </Button>
                       <Button
-                        onClick={() => onProcessApproval.mutate({ taskId: task.id, action: 'approve' })}
+                        onClick={() => onProcessApproval.mutate({ approvalId: task.id, action: 'approve' })}
                         disabled={onProcessApproval.isPending || comments.trim() === ''}
+                        data-testid={`button-approve-${task.id}`}
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Approve
