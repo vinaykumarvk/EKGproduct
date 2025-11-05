@@ -87,6 +87,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(), // bcrypt hashed
   fullName: text("full_name").notNull(),
   team: text("team").notNull(), // 'admin' | 'presales' | 'ba' | 'management'
+  managerId: varchar("manager_id").references(() => users.id), // Links to manager (M1 for BA, M2 for Pre-sales)
   email: text("email"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -358,7 +359,7 @@ export const investmentRequests = pgTable("investment_requests", {
   createdBy: text("created_by"), // Name of the author/creator
   description: text("description"),
   enhancedDescription: text("enhanced_description"), // AI-enhanced version of description
-  status: text("status").notNull().default("draft"), // draft, opportunity, new, approved, rejected, changes_requested
+  status: text("status").notNull().default("draft"), // draft, submitted, under_review, approved, rejected, revision_requested
   currentApprovalStage: integer("current_approval_stage").default(0),
   slaDeadline: timestamp("sla_deadline"),
   deletedAt: timestamp("deleted_at"), // Soft delete timestamp
@@ -374,8 +375,10 @@ export const approvals = pgTable("approvals", {
   requestId: integer("request_id").notNull(),
   stage: integer("stage").notNull(),
   approverId: varchar("approver_id").references(() => users.id), // Changed to varchar for UUID
-  status: text("status").notNull(), // pending, approved, rejected, changes_requested
+  status: text("status").notNull(), // pending, approved, rejected, revision_requested
   comments: text("comments"),
+  rejectionReason: text("rejection_reason"), // Detailed reason for rejection or revision request
+  editHistory: text("edit_history"), // JSON string tracking manager edits during review
   approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").defaultNow(),
   approvalCycle: integer("approval_cycle").notNull().default(1), // Track which submission cycle
