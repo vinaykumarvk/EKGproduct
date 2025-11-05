@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Route, Switch, useLocation } from "wouter";
-import { LayoutDashboard, TrendingUp, Briefcase, CheckSquare, FileText, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Briefcase, CheckSquare, FileText, Menu, X, ChevronLeft, ChevronRight, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUser } from "@/lib/auth";
 import DashboardPage from "@/pages/Dashboard";
 import NewInvestmentPage from "@/pages/NewInvestment";
 import MyInvestmentsPage from "@/pages/MyInvestments";
@@ -12,6 +14,7 @@ export default function InvestmentPortal() {
   const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const user = useUser();
 
   const navItems = [
     {
@@ -45,6 +48,40 @@ export default function InvestmentPortal() {
       description: "Report Templates"
     }
   ];
+
+  // Show login prompt if not authenticated
+  if (!user) {
+    return (
+      <div className="flex h-full bg-background items-center justify-center p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="rounded-full bg-primary/10 p-3">
+                <LogIn className="w-8 h-8 text-primary" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl">Login Required</CardTitle>
+            <CardDescription className="text-base mt-2">
+              Please login to access the Report Portal
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground text-center">
+              The Report Portal requires authentication to create and manage reports. Click the user icon in the top-right corner to login.
+            </p>
+            <div className="bg-muted p-4 rounded-lg">
+              <p className="text-xs font-semibold text-foreground mb-2">Test Accounts:</p>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>• <span className="font-mono">john_ba</span> / <span className="font-mono">password123</span></p>
+                <p>• <span className="font-mono">sarah_ba</span> / <span className="font-mono">password123</span></p>
+                <p>• <span className="font-mono">M1</span> / <span className="font-mono">password123</span> (Manager)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full bg-background">
