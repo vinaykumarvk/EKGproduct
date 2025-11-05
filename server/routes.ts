@@ -1037,9 +1037,10 @@ Write the response now:`;
   // ===== Investment Portal API Routes =====
   
   // Investment routes
-  app.get("/api/investments", async (req, res) => {
+  app.get("/api/investments", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.query.userId as string;
+      // Only show investments created by the logged-in user
+      const userId = req.user.id;
       const status = req.query.status as string;
       const investments = await storage.getInvestmentRequests({ userId, status });
       res.json(investments);
@@ -1078,6 +1079,37 @@ Write the response now:`;
       res.json(investment);
     } catch (error) {
       res.status(500).json({ error: "Failed to update investment" });
+    }
+  });
+
+  app.post("/api/investments/:id/submit", requireAuth, async (req: any, res) => {
+    try {
+      const investmentId = parseInt(req.params.id);
+      const userId = req.user.id;
+
+      // Get the user's manager
+      const manager = await storage.getUserManager(userId);
+      if (!manager) {
+        return res.status(400).json({ error: "No manager assigned. Cannot submit for approval." });
+      }
+
+      // Update investment status to submitted
+      await storage.updateInvestmentRequest(investmentId, { status: 'submitted' });
+
+      // Create approval record for the manager
+      const approval = await storage.createApproval({
+        requestType: 'investment',
+        requestId: investmentId,
+        approverId: manager.id,
+        status: 'pending',
+        submittedBy: userId,
+        submittedAt: new Date(),
+      });
+
+      res.json({ success: true, approval });
+    } catch (error) {
+      console.error("Failed to submit investment:", error);
+      res.status(500).json({ error: "Failed to submit investment" });
     }
   });
 
@@ -1228,6 +1260,18 @@ Write the response now:`;
   });
 
   // Approval routes
+  app.get("/api/approvals/my-tasks", requireAuth, async (req: any, res) => {
+    try {
+      // Only show approvals where the logged-in user is the approver (manager)
+      const approverId = req.user.id;
+      const status = req.query.status as string;
+      const approvals = await storage.getApprovalsByApproverId(approverId, status);
+      res.json(approvals);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch approvals" });
+    }
+  });
+
   app.get("/api/approvals/:requestType/:requestId", async (req, res) => {
     try {
       const approvals = await storage.getApprovalsByRequest(req.params.requestType, parseInt(req.params.requestId));
@@ -1243,6 +1287,21 @@ Write the response now:`;
       res.json(approval);
     } catch (error) {
       res.status(500).json({ error: "Failed to create approval" });
+    }
+  });
+
+  app.put("/api/approvals/:id", requireAuth, async (req: any, res) => {
+    try {
+      const { status, rejectionReason, editHistory } = req.body;
+      const approval = await storage.updateApprovalStatus(
+        parseInt(req.params.id),
+        status,
+        rejectionReason,
+        editHistory
+      );
+      res.json(approval);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update approval" });
     }
   });
 
