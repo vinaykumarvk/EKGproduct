@@ -18,37 +18,51 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     
-    // Validate username is provided
+    // Validate inputs
     if (!username || username.trim() === "") {
       setError("Please enter a username");
       return;
     }
     
+    if (!password || password.trim() === "") {
+      setError("Please enter a password");
+      return;
+    }
+    
     setLoading(true);
 
-    // TEMPORARY: Database unavailable - always use bypass mode
-    console.warn("⚠️ Database unavailable - creating bypass session for:", username);
-    
-    // Store bypass user in localStorage
-    const bypassUser = {
-      id: `bypass-${username.toLowerCase()}`,
-      username: username.trim(),
-      fullName: username.trim(),
-      team: "Development",
-      email: null,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString()
-    };
-    
-    console.log("✅ Bypass user created:", bypassUser);
-    localStorage.setItem("bypass_user", JSON.stringify(bypassUser));
-    
-    // Small delay to show the loading state, then navigate to home
-    setTimeout(() => {
-      console.log("🔄 Navigating to home page...");
+    try {
+      // Call the real login API endpoint
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          username: username.trim(), 
+          password: password.trim() 
+        }),
+        credentials: "include", // Important: Include cookies
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || "Login failed. Please check your credentials.");
+        setLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+      console.log("✅ Login successful:", data.user.username);
+      
+      // Clear any old bypass user
+      localStorage.removeItem("bypass_user");
+      
+      // Redirect to home
       window.location.href = "/";
-    }, 500);
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -63,13 +77,15 @@ export default function LoginPage() {
             Sign in to access your enterprise AI assistant
           </CardDescription>
           
-          {/* Database connectivity notice */}
-          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-            <p className="text-xs text-amber-800 dark:text-amber-200 font-semibold mb-1">
-              ⚠️ Database Bypass Mode Active
+          {/* Test accounts notice */}
+          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+            <p className="text-xs text-blue-800 dark:text-blue-200 font-semibold mb-1">
+              📋 Test Accounts
             </p>
-            <p className="text-xs text-amber-800 dark:text-amber-200">
-              Enter <strong>ANY username</strong> (admin, user, test, etc.) and <strong>ANY password</strong> to continue. All usernames work equally.
+            <p className="text-xs text-blue-800 dark:text-blue-200 space-y-0.5">
+              <span className="block">• <code className="font-mono">john_ba</code> / <code className="font-mono">password123</code></span>
+              <span className="block">• <code className="font-mono">M1</code> / <code className="font-mono">password123</code> (Manager)</span>
+              <span className="block">• <code className="font-mono">M2</code> / <code className="font-mono">password123</code> (Manager)</span>
             </p>
           </div>
         </CardHeader>
